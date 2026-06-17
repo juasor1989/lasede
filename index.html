@@ -342,7 +342,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;dis
 <div class="page active" id="page-inv">
   <div class="hdr">
     <div class="hdr-top">
-      <div class="brand"><div class="bname">La Sede</div><div class="bsub">Inventario · v18</div></div>
+      <div class="brand"><div class="bname">La Sede</div><div class="bsub">Inventario · v18.1</div></div>
       <div class="hactions">
         <button class="btn" onclick="openOrderMo()">↕️</button>
         <button class="btn" onclick="openAddMo()">＋</button>
@@ -502,6 +502,17 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;dis
 </div>
 
 <!-- ═══════════ DASHBOARD PAGE ═══════════ -->
+<div class="page" id="page-dash">
+  <div class="hdr">
+    <div class="hdr-top">
+      <div class="brand"><div class="bname">Dashboard</div><div class="bsub">Análisis y alertas</div></div>
+      <div class="hactions">
+        <button class="btn gold" onclick="exportDashXL()">📊 Excel</button>
+      </div>
+    </div>
+  </div>
+  <div id="dashContent" style="padding:12px 16px;display:flex;flex-direction:column;gap:12px;overflow-y:auto;flex:1;"></div>
+</div>
 
 <!-- MODAL VENTAS -->
 <div class="mo" id="moSales" onclick="closeMoSales(event)">
@@ -727,6 +738,8 @@ async function cloudLoad(){
     }
     localBackup();
     populateCatSelect();refreshProvFilter();
+    renderAll();renderCart();renderHist();
+    if(E('page-dash')?.classList.contains('active'))renderDash();
     showSync('✓ Cargado: '+hist.length+' snapshots · '+orderHistory.length+' pedidos','#22c55e');
     setTimeout(hideSync,3000);
   }catch(e){
@@ -749,6 +762,7 @@ async function cloudLoad(){
   }
   populateCatSelect();refreshProvFilter();
   renderAll();renderCart();renderHist();
+  if(E('page-dash')?.classList.contains('active'))renderDash();
 }
 
 function getEdits(){
@@ -975,8 +989,9 @@ function toast(msg,color){
 function showPage(id){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
-  E('page-'+id).classList.add('active');
-  E('tab-'+id).classList.add('active');
+  const pg=E('page-'+id);const tb=E('tab-'+id);
+  if(pg)pg.classList.add('active');
+  if(tb)tb.classList.add('active');
   if(id==='cart'){if(!recvMode)renderCartNormal();else renderRecvMode();}
   if(id==='hist')renderHist();
   if(id==='dash')renderDash();
@@ -987,10 +1002,10 @@ function init(){
   deletedBaseIds=[];customProvs=[];customCats=[];catOrder=[];
   prods=JSON.parse(JSON.stringify(DP));
   sales=[];orderHistory=[];
-  // Render base catalog immediately — never shows blank screen
+  // Show catalog immediately so screen is never blank
   populateCatSelect();
   renderAll();
-  // Load saved data async — re-renders when done
+  // Load saved data — will re-render when complete
   cloudLoad();
 }
 
@@ -1678,6 +1693,7 @@ function saveSnapshot(){
   if(saveTimer)clearTimeout(saveTimer);
   cloudSave();
   renderHist();
+  if(E('page-dash')?.classList.contains('active'))renderDash();
   toast('📸 Snapshot guardado ('+snap.items.length+' productos)');
 }
 
@@ -1976,7 +1992,8 @@ E('mrqInput')?.addEventListener('keydown',e=>{if(e.key==='Enter')confirmRQ();if(
 const CAT_COLORS=['#d4a843','#22c55e','#3b82f6','#a855f7','#f97316','#ef4444','#06b6d4','#84cc16','#f59e0b','#6366f1','#ec4899','#14b8a6','#8b5cf6','#f43f5e','#10b981'];
 
 function renderDash(){
-  const content=E('dashContent');if(!content)return;
+  const content=E('dashContent');
+  if(!content){setTimeout(renderDash,200);return;}
 
   // ── 1. KPI cards ──
   const totalVal=prods.reduce((s,p)=>{const v=cnts[p.id];return s+(v!==undefined?v*p.p:0);},0);
@@ -2093,13 +2110,13 @@ function renderDash(){
 
   // ── 4. Alertas inteligentes de consumo ──
   if(hist.length>=2){
-    const last=hist[0],prev=hist[1];
+    const last=snapExpand(hist[0]),prev=snapExpand(hist[1]);
     const alerts=[];
     last.items.forEach(item=>{
       const prevItem=prev.items.find(x=>x.id===item.id);
       if(prevItem&&prevItem.qty>item.qty){
         const consumed=prevItem.qty-item.qty;
-        const daysEst=item.qty>0?Math.floor(item.qty/consumed*7):0; // rough weekly estimate
+        const daysEst=item.qty>0?Math.floor(item.qty/consumed*7):0;
         if(daysEst<=7&&item.qty>0){
           alerts.push({...item,consumed,daysEst});
         }
