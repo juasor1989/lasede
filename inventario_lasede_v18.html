@@ -1,0 +1,2498 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>La Sede · Inventario</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  --bg:#0e0e14;--s1:#161620;--s2:#1e1e2a;--s3:#252533;
+  --border:#2a2a3a;--border2:#333345;
+  --gold:#d4a843;--gold2:#f0c96a;--gold3:#7a5e1a;
+  --green:#22c55e;--red:#ef4444;--blue:#3b82f6;--purple:#a855f7;--orange:#f97316;
+  --text:#eeeef4;--t2:#9898b8;--t3:#555570;
+  --r:12px;--rs:8px;--rx:20px;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;overflow:hidden;}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;display:flex;flex-direction:column;}
+
+/* ── NAV TABS ── */
+.nav{display:flex;background:var(--s1);border-bottom:1px solid var(--border);flex-shrink:0;overflow-x:auto;scrollbar-width:none;}
+.nav::-webkit-scrollbar{display:none;}
+.nav-tab{flex:1;min-width:64px;padding:12px 6px 10px;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;color:var(--t3);}
+.nav-tab.active{color:var(--gold);border-color:var(--gold);}
+.nav-tab .ti{font-size:18px;}
+.nav-tab .tl{font-size:9px;letter-spacing:1px;text-transform:uppercase;font-weight:600;}
+.nav-badge{background:var(--red);color:white;border-radius:10px;padding:1px 5px;font-size:9px;font-family:'DM Mono',monospace;font-weight:700;min-width:16px;text-align:center;}
+
+/* ── PAGES ── */
+.page{display:none;flex:1;overflow-y:auto;overflow-x:hidden;}
+.page.active{display:flex;flex-direction:column;}
+
+/* ── HEADER ── */
+.hdr{background:linear-gradient(160deg,#0a0a12,#181028);border-bottom:1px solid var(--gold3);padding:14px 16px 10px;flex-shrink:0;position:sticky;top:0;z-index:50;backdrop-filter:blur(20px);}
+.hdr-top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;}
+.brand{display:flex;flex-direction:column;}
+.bname{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:3px;color:var(--gold);line-height:1;}
+.bsub{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--t2);}
+.hactions{display:flex;gap:6px;}
+.btn{background:var(--s2);border:1px solid var(--border);border-radius:var(--rs);padding:7px 11px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:4px;white-space:nowrap;transition:all .15s;}
+.btn:active{transform:scale(.95);}
+.btn.gold{background:var(--gold);border-color:var(--gold);color:#111;}
+.btn.red{background:rgba(239,68,68,.15);border-color:rgba(239,68,68,.3);color:var(--red);}
+.btn.blue{background:rgba(59,130,246,.15);border-color:rgba(59,130,246,.3);color:var(--blue);}
+.btn.green{background:rgba(34,197,94,.15);border-color:rgba(34,197,94,.3);color:var(--green);}
+.btn.purple{background:rgba(168,85,247,.15);border-color:rgba(168,85,247,.3);color:var(--purple);}
+
+/* ── VALOR BAR ── */
+.vbar{background:linear-gradient(90deg,rgba(212,168,67,.08),rgba(212,168,67,.02));border-bottom:1px solid rgba(212,168,67,.15);padding:9px 16px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+.vt-l{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--t2);}
+.vt-s{font-size:10px;color:var(--t3);margin-top:1px;}
+.vt-v{font-family:'Bebas Neue',sans-serif;font-size:28px;color:var(--gold2);letter-spacing:1px;}
+
+/* ── STATS ── */
+.sbar{display:flex;background:var(--s1);border-bottom:1px solid var(--border);flex-shrink:0;overflow-x:auto;scrollbar-width:none;}
+.sbar::-webkit-scrollbar{display:none;}
+.si{flex:1;min-width:60px;padding:8px 10px;border-right:1px solid var(--border);text-align:center;}
+.si:last-child{border-right:none;}
+.sv{font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--gold);line-height:1;}
+.sl{font-size:8px;letter-spacing:1px;text-transform:uppercase;color:var(--t2);margin-top:2px;}
+
+/* ── PROGRESS ── */
+.prow{display:flex;align-items:center;gap:8px;}
+.ptrack{flex:1;height:3px;background:var(--s2);border-radius:2px;overflow:hidden;}
+.pfill{height:100%;background:linear-gradient(90deg,var(--gold3),var(--gold));border-radius:2px;transition:width .4s ease;}
+.plbl{font-family:'DM Mono',monospace;font-size:10px;color:var(--t2);white-space:nowrap;}
+
+/* ── FILTERS ── */
+.filters{padding:10px 16px 0;display:flex;flex-direction:column;gap:7px;flex-shrink:0;}
+.search{width:100%;background:var(--s1);border:1px solid var(--border);border-radius:var(--rs);padding:10px 14px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;outline:none;transition:border-color .2s;}
+.search:focus{border-color:var(--gold3);}
+.search::placeholder{color:var(--t3);}
+.filter-row{display:flex;gap:7px;}
+.fsel{flex:1;background:var(--s2);border:1px solid var(--border);border-radius:var(--rs);padding:8px 10px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:12px;outline:none;cursor:pointer;}
+
+/* ── CATEGORY TABS ── */
+.ctabs{display:flex;gap:6px;padding:8px 16px;overflow-x:auto;scrollbar-width:none;flex-shrink:0;}
+.ctabs::-webkit-scrollbar{display:none;}
+.ctab{flex-shrink:0;padding:5px 10px;border-radius:var(--rx);border:1px solid var(--border);background:var(--s1);color:var(--t2);font-size:10px;font-weight:600;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:4px;white-space:nowrap;letter-spacing:.5px;}
+.ctab.a{background:var(--gold);border-color:var(--gold);color:#111;}
+.cc{background:rgba(255,255,255,.15);border-radius:8px;padding:1px 4px;font-size:8px;font-family:'DM Mono',monospace;}
+.ctab.a .cc{background:rgba(0,0,0,.2);}
+
+/* ── SECTION HEADER ── */
+.shdr{display:flex;align-items:center;gap:10px;padding:12px 16px 5px;flex-shrink:0;}
+.stit{font-family:'Bebas Neue',sans-serif;font-size:11px;letter-spacing:4px;color:var(--t2);}
+.sline{flex:1;height:1px;background:var(--border);}
+.sval{font-family:'DM Mono',monospace;font-size:10px;color:var(--gold);font-weight:600;}
+
+/* ── PRODUCT LIST ── */
+.plist{padding:5px 16px;display:flex;flex-direction:column;gap:6px;}
+.pi{background:var(--s1);border:1px solid var(--border);border-radius:var(--r);padding:11px 12px;display:flex;align-items:center;gap:9px;position:relative;overflow:hidden;transition:border-color .2s,background .2s;}
+.pi.ok{border-color:rgba(34,197,94,.3);background:rgba(34,197,94,.03);}
+.pi.lo{border-color:rgba(239,68,68,.3);background:rgba(239,68,68,.03);}
+.pi.incart{border-color:rgba(59,130,246,.3);background:rgba(59,130,246,.03);}
+.pi::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--border);transition:background .2s;}
+.pi.ok::before{background:var(--green);}
+.pi.lo::before{background:var(--red);}
+.pi.incart::before{background:var(--blue);}
+.pem{font-size:18px;flex-shrink:0;width:24px;text-align:center;}
+.pinf{flex:1;min-width:0;}
+.pname{font-size:13px;font-weight:600;color:var(--text);white-space:normal;word-break:break-word;line-height:1.35;}
+.pmeta{font-size:10px;margin-top:3px;display:flex;gap:4px;align-items:center;flex-wrap:wrap;}
+.tag{font-family:'DM Mono',monospace;font-size:8px;padding:1px 5px;border-radius:3px;letter-spacing:.3px;}
+.tu{background:var(--s2);color:var(--t2);}
+.tp{background:rgba(212,168,67,.1);color:var(--gold2);}
+.tv{background:rgba(59,130,246,.1);color:var(--blue);}
+.tl{background:rgba(239,68,68,.12);color:var(--red);}
+.tc{background:rgba(59,130,246,.12);color:var(--blue);}
+.pval{font-family:'DM Mono',monospace;font-size:11px;color:var(--green);font-weight:700;flex-shrink:0;margin-right:3px;}
+.pi-actions{display:flex;align-items:center;gap:5px;flex-shrink:0;}
+.cart-btn{width:30px;height:30px;background:var(--s2);border:1px solid var(--border);border-radius:var(--rs);display:flex;align-items:center;justify-content:center;font-size:14px;cursor:pointer;transition:all .15s;flex-shrink:0;}
+.cart-btn:active{transform:scale(.9);}
+.cart-btn.incart{background:rgba(59,130,246,.2);border-color:rgba(59,130,246,.4);}
+.edit-btn{width:30px;height:30px;background:var(--s2);border:1px solid var(--border);border-radius:var(--rs);display:flex;align-items:center;justify-content:center;font-size:13px;cursor:pointer;transition:all .15s;flex-shrink:0;}
+.edit-btn:active{transform:scale(.9);}
+
+/* ── COUNTER ── */
+.cnt{display:flex;align-items:center;flex-shrink:0;}
+.cb{width:34px;height:34px;background:var(--s2);border:1px solid var(--border);color:var(--text);font-size:17px;font-weight:300;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .1s;user-select:none;-webkit-user-select:none;}
+.cb:first-child{border-radius:var(--rs) 0 0 var(--rs);}
+.cb:last-child{border-radius:0 var(--rs) var(--rs) 0;}
+.cb:active{background:var(--gold);color:#111;transform:scale(.93);}
+.cb.m:active{background:var(--red);color:white;}
+.cv{min-width:40px;height:34px;background:var(--bg);border-top:1px solid var(--border);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--t3);cursor:pointer;transition:color .2s;letter-spacing:1px;}
+.cv.v{color:var(--gold2);}
+
+/* ── CARRITO PAGE ── */
+.cart-section{margin:12px 16px;background:var(--s1);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;}
+.cart-prov-hdr{background:var(--s2);padding:10px 14px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);}
+.cart-prov-name{font-family:'Bebas Neue',sans-serif;font-size:14px;letter-spacing:2px;color:var(--gold);}
+.cart-prov-total{font-family:'DM Mono',monospace;font-size:11px;color:var(--t2);}
+.cart-item{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border);}
+.cart-item:last-child{border-bottom:none;}
+.ci-em{font-size:18px;flex-shrink:0;}
+.ci-inf{flex:1;min-width:0;}
+.ci-name{font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ci-meta{font-size:11px;color:var(--t2);margin-top:2px;}
+.ci-qty{display:flex;align-items:center;gap:6px;flex-shrink:0;}
+.ci-qty-btn{width:28px;height:28px;background:var(--s3);border:1px solid var(--border);border-radius:6px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;color:var(--text);transition:all .1s;}
+.ci-qty-btn:active{background:var(--gold);color:#111;}
+.ci-qty-val{font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--gold2);min-width:28px;text-align:center;}
+.ci-del{width:28px;height:28px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.2);border-radius:6px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:14px;transition:all .1s;}
+.ci-del:active{background:var(--red);color:white;}
+.cart-empty{text-align:center;padding:60px 20px;color:var(--t2);}
+.cart-empty-icon{font-size:48px;margin-bottom:12px;}
+.cart-empty-txt{font-size:14px;}
+.cart-total-bar{margin:0 16px 12px;background:var(--s1);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px;display:flex;align-items:center;justify-content:space-between;}
+.cart-total-lbl{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--t2);}
+.cart-total-val{font-family:'Bebas Neue',sans-serif;font-size:26px;color:var(--gold2);}
+.cart-actions{display:flex;gap:8px;padding:0 16px 16px;}
+
+/* ── HISTORIAL PAGE ── */
+.hist-section{margin:12px 16px;}
+.hist-filters{display:flex;gap:7px;margin-bottom:10px;}
+.hist-empty{text-align:center;padding:60px 20px;color:var(--t2);}
+.hist-entry{background:var(--s1);border:1px solid var(--border);border-radius:var(--r);padding:12px 14px;margin-bottom:8px;}
+.he-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+.he-date{font-family:'DM Mono',monospace;font-size:10px;color:var(--t2);}
+.he-label{font-size:11px;font-weight:700;color:var(--gold);letter-spacing:1px;text-transform:uppercase;}
+.he-items{display:flex;flex-direction:column;gap:5px;}
+.he-item{display:flex;align-items:center;gap:8px;font-size:12px;}
+.he-item-name{flex:1;color:var(--text);}
+.he-item-chg{font-family:'DM Mono',monospace;font-size:11px;padding:1px 6px;border-radius:4px;}
+.chg-up{background:rgba(239,68,68,.12);color:var(--red);}
+.chg-dn{background:rgba(34,197,94,.12);color:var(--green);}
+.chg-new{background:rgba(212,168,67,.12);color:var(--gold);}
+.he-val{font-family:'DM Mono',monospace;font-size:10px;color:var(--t2);text-align:right;min-width:60px;}
+
+/* ── MODAL ── */
+.mo{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:200;align-items:flex-end;justify-content:center;}
+.mo.open{display:flex;}
+.md{background:var(--s1);border-radius:20px 20px 0 0;border-top:1px solid var(--border);padding:20px 20px 44px;width:100%;max-width:480px;animation:su .25s ease;max-height:90vh;overflow-y:auto;}
+@keyframes su{from{transform:translateY(100%);opacity:0}to{transform:translateY(0);opacity:1}}
+.mo-title{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:2px;color:var(--gold);margin-bottom:14px;}
+.mo-field{margin-bottom:12px;}
+.mo-label{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--t2);margin-bottom:5px;display:block;}
+.mo-input,.mo-select,.mo-textarea{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:var(--rs);padding:10px 12px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;outline:none;transition:border-color .2s;}
+.mo-input:focus,.mo-select:focus,.mo-textarea:focus{border-color:var(--gold3);}
+.mo-input.big{font-size:22px;font-family:'Bebas Neue',sans-serif;letter-spacing:2px;text-align:center;}
+.mo-select option{background:var(--s2);}
+.mo-textarea{resize:vertical;min-height:60px;font-size:12px;}
+.mo-btns{display:flex;gap:10px;margin-top:16px;}
+.mo-btn{flex:1;padding:12px;border-radius:var(--rs);border:1px solid var(--border);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;cursor:pointer;transition:all .15s;}
+.mo-btn:active{transform:scale(.97);}
+.mo-btn.ca{background:var(--s2);color:var(--t2);}
+.mo-btn.co{background:var(--gold);border-color:var(--gold);color:#111;}
+.mo-btn.danger{background:rgba(239,68,68,.15);border-color:rgba(239,68,68,.3);color:var(--red);}
+.mo-fmt{font-size:11px;color:var(--purple);background:rgba(168,85,247,.08);border-radius:6px;padding:7px 10px;margin-bottom:12px;line-height:1.5;}
+.mo-row{display:flex;gap:10px;}
+.mo-row .mo-field{flex:1;}
+
+/* ── SYNC BADGE ── */
+#syncBadge{position:fixed;top:8px;left:50%;transform:translateX(-50%);background:var(--s1);border:1px solid var(--border);border-radius:20px;padding:4px 12px;font-size:10px;font-family:'DM Sans',sans-serif;z-index:999;transition:opacity .4s;white-space:nowrap;pointer-events:none;opacity:0;}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--green);color:white;padding:8px 16px;border-radius:var(--rx);font-size:12px;font-weight:600;opacity:0;transition:all .3s;z-index:300;white-space:nowrap;pointer-events:none;}
+.toast.sh{opacity:1;transform:translateX(-50%) translateY(0);}
+
+/* ── BOTTOM NAV BAR ── */
+.bbar{background:var(--s1);border-top:1px solid var(--border);padding:8px 16px;display:flex;gap:8px;flex-shrink:0;}
+.bb{flex:1;padding:11px;border-radius:var(--rs);border:none;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:700;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:5px;}
+.bb:active{transform:scale(.97);}
+.bb.x{background:var(--gold);color:#111;}
+.bb.r{background:var(--s2);color:var(--t2);border:1px solid var(--border);}
+
+.empty{text-align:center;padding:40px 20px;color:var(--t2);}
+.divider{height:8px;}
+
+/* ── RECEPTION MODE ── */
+.recv-mode-bar{background:linear-gradient(135deg,rgba(34,197,94,.12),rgba(34,197,94,.04));border-bottom:2px solid rgba(34,197,94,.3);padding:12px 16px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+.recv-mode-lbl{display:flex;flex-direction:column;gap:2px;}
+.recv-mode-title{font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:2px;color:var(--green);}
+.recv-mode-sub{font-size:10px;color:var(--t2);}
+.recv-mode-actions{display:flex;gap:8px;}
+.recv-item{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border);transition:background .2s;}
+.recv-item.received{background:rgba(34,197,94,.06);border-left:3px solid var(--green);}
+.recv-item.partial{background:rgba(251,191,36,.06);border-left:3px solid #fbbf24;}
+.recv-item.missing{background:rgba(239,68,68,.04);border-left:3px solid rgba(239,68,68,.3);}
+.recv-check{width:34px;height:34px;border-radius:50%;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;transition:all .15s;flex-shrink:0;background:var(--s2);}
+.recv-check.done{background:var(--green);border-color:var(--green);color:white;}
+.recv-check.part{background:#fbbf24;border-color:#fbbf24;color:#111;}
+.recv-info{flex:1;min-width:0;}
+.recv-name{font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.recv-meta{font-size:11px;color:var(--t2);margin-top:2px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;}
+.recv-qty-wrap{display:flex;align-items:center;gap:6px;flex-shrink:0;}
+.recv-qty-btn{width:28px;height:28px;background:var(--s3);border:1px solid var(--border);border-radius:6px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:15px;color:var(--text);transition:all .1s;}
+.recv-qty-btn:active{background:var(--gold);color:#111;}
+.recv-qty-val{font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--gold2);min-width:32px;text-align:center;}
+.recv-progress{height:4px;background:var(--s2);border-radius:2px;overflow:hidden;margin-top:8px;}
+.recv-progress-fill{height:100%;background:var(--green);border-radius:2px;transition:width .4s ease;}
+.recv-discrepancy{font-size:10px;padding:2px 6px;border-radius:4px;font-family:'DM Mono',monospace;font-weight:700;}
+.rd-less{background:rgba(239,68,68,.15);color:var(--red);}
+.rd-more{background:rgba(59,130,246,.15);color:var(--blue);}
+.recv-summary-card{background:var(--s1);border:1px solid var(--border);border-radius:var(--r);margin:12px 16px;padding:14px 16px;}
+.recv-summary-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px;}
+.recv-summary-row:last-child{border-bottom:none;}
+
+/* ── ORDER HISTORY ── */
+.orderhist-entry{background:var(--s1);border:1px solid var(--border);border-radius:var(--r);margin:0 0 10px 0;overflow:hidden;}
+.oh-hdr{background:var(--s2);padding:10px 14px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);}
+.oh-date{font-family:'DM Mono',monospace;font-size:10px;color:var(--t2);}
+.oh-prov{font-family:'Bebas Neue',sans-serif;font-size:13px;letter-spacing:1px;color:var(--gold);}
+.oh-status{font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;}
+.oh-complete{background:rgba(34,197,94,.15);color:var(--green);}
+.oh-partial{background:rgba(251,191,36,.12);color:#fbbf24;}
+.oh-item{display:flex;align-items:center;justify-content:space-between;padding:8px 14px;border-bottom:1px solid rgba(42,42,58,.5);font-size:12px;}
+.oh-item:last-child{border-bottom:none;}
+.oh-item-name{flex:1;color:var(--text);}
+.oh-item-qty{font-family:'DM Mono',monospace;color:var(--t2);margin-right:8px;}
+.oh-item-disc{font-family:'DM Mono',monospace;font-size:10px;padding:1px 5px;border-radius:3px;}
+
+/* ── DASHBOARD ── */
+.dash-card{background:var(--s1);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px;margin-bottom:0;}
+.dash-card-title{font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--t2);margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;}
+.dash-kpi-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.dash-kpi{background:var(--s2);border-radius:var(--rs);padding:12px;text-align:center;border:1px solid var(--border);}
+.dash-kpi-val{font-family:'Bebas Neue',sans-serif;font-size:26px;line-height:1;margin-bottom:3px;}
+.dash-kpi-lbl{font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--t2);}
+.dash-alert{border-radius:var(--rs);padding:10px 12px;display:flex;align-items:center;gap:10px;margin-bottom:6px;cursor:pointer;}
+.dash-alert.red{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);}
+.dash-alert.yellow{background:rgba(251,191,36,.07);border:1px solid rgba(251,191,36,.2);}
+.dash-alert.green{background:rgba(34,197,94,.07);border:1px solid rgba(34,197,94,.2);}
+.da-icon{font-size:20px;flex-shrink:0;}
+.da-info{flex:1;}
+.da-title{font-size:13px;font-weight:700;}
+.da-sub{font-size:11px;color:var(--t2);margin-top:2px;}
+.da-action{font-size:11px;font-weight:700;padding:4px 10px;border-radius:var(--rs);cursor:pointer;white-space:nowrap;flex-shrink:0;}
+.da-action.red{background:rgba(239,68,68,.2);color:var(--red);}
+.da-action.yellow{background:rgba(251,191,36,.15);color:#fbbf24;}
+.bar-chart{display:flex;flex-direction:column;gap:8px;}
+.bar-row{display:flex;align-items:center;gap:8px;}
+.bar-lbl{width:100px;font-size:11px;color:var(--t2);text-align:right;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.bar-track{flex:1;height:8px;background:var(--s2);border-radius:4px;overflow:hidden;}
+.bar-fill{height:100%;border-radius:4px;transition:width .8s ease;}
+.bar-val{font-family:'DM Mono',monospace;font-size:10px;color:var(--t2);width:70px;text-align:right;flex-shrink:0;}
+.trend-row{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);}
+.trend-row:last-child{border-bottom:none;}
+.trend-lbl{flex:1;font-size:12px;color:var(--text);}
+.trend-chg{font-family:'DM Mono',monospace;font-size:11px;padding:2px 7px;border-radius:4px;}
+.trend-up{background:rgba(239,68,68,.12);color:var(--red);}
+.trend-dn{background:rgba(34,197,94,.12);color:var(--green);}
+.trend-eq{background:var(--s2);color:var(--t2);}
+.foodcost-bar{height:12px;border-radius:6px;background:var(--s2);overflow:hidden;margin:8px 0;}
+.foodcost-fill{height:100%;border-radius:6px;transition:width .8s ease;}
+.scan-result-found{background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.2);border-radius:var(--rs);padding:12px;text-align:center;}
+.scan-result-not{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);border-radius:var(--rs);padding:12px;text-align:center;color:var(--red);}
+@keyframes scanAnim{0%{top:10%;}50%{top:85%;}100%{top:10%;}}
+.order-item{display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--s1);border:1px solid var(--border);border-radius:var(--rs);margin-bottom:6px;}
+.order-item-name{flex:1;font-size:13px;color:var(--text);}
+.order-btn{width:30px;height:30px;background:var(--s2);border:1px solid var(--border);border-radius:6px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:14px;color:var(--text);}
+.order-btn:active{background:var(--gold);color:#111;}
+
+/* ── CAJA ── */
+.caja-resumen{display:grid;grid-template-columns:repeat(4,1fr);gap:0;background:var(--s1);border-bottom:1px solid var(--border);}
+.cr-item{padding:10px 8px;text-align:center;border-right:1px solid var(--border);}
+.cr-item:last-child{border-right:none;}
+.cr-val{font-family:'Bebas Neue',sans-serif;font-size:16px;line-height:1;}
+.cr-lbl{font-size:8px;letter-spacing:1px;text-transform:uppercase;color:var(--t2);margin-top:2px;}
+.cierre-item{background:var(--s1);border:1px solid var(--border);border-radius:var(--r);margin-bottom:8px;overflow:hidden;cursor:pointer;transition:border-color .15s;}
+.cierre-item:hover{border-color:var(--gold3);}
+.ci-hdr{padding:12px 14px;display:flex;align-items:center;justify-content:space-between;}
+.ci-fecha{font-family:'DM Mono',monospace;font-size:11px;color:var(--t2);}
+.ci-total{font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--gold2);}
+.ci-body{padding:0 14px 12px;display:flex;gap:8px;}
+.ci-pill{background:var(--s2);border-radius:20px;padding:4px 10px;font-size:11px;display:flex;align-items:center;gap:4px;}
+.ci-pill .label{color:var(--t2);}
+.ci-pill .val{font-family:'DM Mono',monospace;font-weight:700;}
+.ci-nota{font-size:11px;color:var(--t3);font-style:italic;padding:0 14px 10px;}
+.week-group-hdr{font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--t2);padding:12px 0 6px;border-bottom:1px solid var(--border);margin-bottom:8px;display:flex;justify-content:space-between;}
+.week-group-total{font-family:'DM Mono',monospace;color:var(--gold);font-size:11px;}
+
+/* ── SVG CHART ── */
+.chart-wrap{width:100%;overflow:hidden;position:relative;}
+.chart-svg{width:100%;height:160px;}
+.chart-label{font-size:9px;fill:var(--t2);}
+.chart-val{font-size:10px;fill:var(--gold2);font-weight:bold;}
+</style>
+</head>
+<body>
+
+<!-- NAV TABS -->
+<div class="nav">
+  <div class="nav-tab active" onclick="showPage('inv')" id="tab-inv">
+    <span class="ti">📦</span><span class="tl">Inventario</span>
+  </div>
+  <div class="nav-tab" onclick="showPage('cart')" id="tab-cart">
+    <span class="ti">🛒</span><span class="tl">Pedido</span>
+    <span class="nav-badge" id="cartBadge" style="display:none">0</span>
+  </div>
+  <div class="nav-tab" onclick="showPage('hist')" id="tab-hist">
+    <span class="ti">📈</span><span class="tl">Historial</span>
+  </div>
+  <div class="nav-tab" onclick="showPage('dash')" id="tab-dash">
+    <span class="ti">📊</span><span class="tl">Dashboard</span>
+  </div>
+</div>
+
+<!-- ═══════════ INVENTARIO PAGE ═══════════ -->
+<div class="page active" id="page-inv">
+  <div class="hdr">
+    <div class="hdr-top">
+      <div class="brand"><div class="bname">La Sede</div><div class="bsub">Inventario · v18</div></div>
+      <div class="hactions">
+        <button class="btn" onclick="openOrderMo()">↕️</button>
+        <button class="btn" onclick="openAddMo()">＋</button>
+        <button class="btn gold" onclick="exportXL()">📊</button>
+      </div>
+    </div>
+    <div class="prow">
+      <div class="ptrack"><div class="pfill" id="pf" style="width:0%"></div></div>
+      <div class="plbl" id="pl">0/0</div>
+    </div>
+  </div>
+  <div class="vbar">
+    <div><div class="vt-l">Valor total inventario</div><div class="vt-s" id="vs">0 productos contados</div></div>
+    <div class="vt-v" id="vt">0,00 €</div>
+  </div>
+  <div id="alertBar" style="display:none;background:rgba(239,68,68,.08);border-bottom:1px solid rgba(239,68,68,.2);padding:8px 16px;cursor:pointer;" onclick="showPage('dash')">
+    <div style="font-size:11px;font-weight:700;color:var(--red);letter-spacing:.5px;" id="alertMsg">⚠ Hay productos bajo mínimo</div>
+    <div style="font-size:10px;color:var(--t2);margin-top:2px;">Toca para ver en el Dashboard →</div>
+  </div>
+  <div class="sbar">
+    <div class="si"><div class="sv" id="sTot">0</div><div class="sl">Total</div></div>
+    <div class="si"><div class="sv" id="sCnt">0</div><div class="sl">Contados</div></div>
+    <div class="si"><div class="sv" id="sLow" style="color:var(--red)">0</div><div class="sl">Bajo mín</div></div>
+    <div class="si"><div class="sv" id="sPnd" style="color:var(--t2)">0</div><div class="sl">Pendiente</div></div>
+  </div>
+  <div class="filters">
+    <input class="search" id="qIn" placeholder="🔍  Buscar producto..." oninput="renderAll()">
+    <div class="filter-row">
+      <select class="fsel" id="pvFilt" onchange="renderAll()">
+        <option value="all">📦 Todos los proveedores</option>
+        <option value="DISCON">🧊 DISCON</option>
+        <option value="LACUNZA">🍷 LACUNZA</option>
+        <option value="EXBEL">🍺 EXBEL</option>
+        <option value="LESAGA">☕ LESAGA</option>
+        <option value="EGAPAN">🥖 EGAPAN</option>
+        <option value="SADAR">🥚 SADAR</option>
+        <option value="VARIOS">📋 VARIOS</option>
+      </select>
+      <select class="fsel" id="showFilt" onchange="renderAll()" style="max-width:130px;">
+        <option value="all">Todo</option>
+        <option value="counted">Contados</option>
+        <option value="low">Bajo mínimo</option>
+        <option value="uncounted">Sin contar</option>
+      </select>
+    </div>
+  </div>
+  <div class="ctabs" id="ctabs"></div>
+  <div id="plist" style="flex:1;"></div>
+  <div class="bbar">
+    <button class="bb r" onclick="confirmReset()">🔄</button>
+    <button class="bb r" onclick="saveSnapshot()">📸 Snapshot</button>
+    <button class="bb x" onclick="exportXL()">📊</button>
+  </div>
+</div>
+
+<!-- ═══════════ CARRITO PAGE ═══════════ -->
+<div class="page" id="page-cart">
+
+  <!-- ── NORMAL MODE HEADER ── -->
+  <div id="cartNormalHdr" class="hdr">
+    <div class="hdr-top">
+      <div class="brand"><div class="bname">Pedido</div><div class="bsub" id="cartModeSubtitle">Carrito de compra</div></div>
+      <div class="hactions">
+        <button class="btn green" onclick="startReception()" id="btnStartRecv" style="display:none;">📥 Recibir</button>
+        <button class="btn red" onclick="clearCart()">🗑 Vaciar</button>
+        <button class="btn gold" onclick="exportCartXL()">📊</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── RECEPTION MODE HEADER ── -->
+  <div id="cartRecvHdr" class="recv-mode-bar" style="display:none;">
+    <div class="recv-mode-lbl">
+      <div class="recv-mode-title">📥 RECEPCIÓN DE PEDIDO</div>
+      <div class="recv-mode-sub" id="recvProgress">0 de 0 productos confirmados</div>
+    </div>
+    <div class="recv-mode-actions">
+      <button class="btn" onclick="recvConfirmAll()" style="background:var(--green);border-color:var(--green);color:white;">✓ Todo OK</button>
+      <button class="btn" onclick="finishReception()" style="background:rgba(34,197,94,.15);border-color:rgba(34,197,94,.3);color:var(--green);">Finalizar</button>
+      <button class="btn red" onclick="cancelReception()">Cancelar</button>
+    </div>
+  </div>
+
+  <!-- ── TOTAL BAR ── -->
+  <div class="cart-total-bar" id="cartTotalBar">
+    <div>
+      <div class="cart-total-lbl" id="cartTotalLbl">Total pedido estimado</div>
+      <div style="font-size:10px;color:var(--t3);margin-top:2px;" id="cartTotalSub"></div>
+    </div>
+    <div class="cart-total-val" id="cartTotal">0,00 €</div>
+  </div>
+
+  <!-- ── RECEPTION PROGRESS BAR ── -->
+  <div id="recvProgressBar" style="display:none;padding:0 16px 10px;">
+    <div class="recv-progress"><div class="recv-progress-fill" id="recvProgressFill" style="width:0%"></div></div>
+  </div>
+
+  <!-- ── CONTENT ── -->
+  <div id="cartContent" style="flex:1;overflow-y:auto;"></div>
+
+  <!-- ── ACTIONS ── -->
+  <div id="cartNormalActions" class="cart-actions" style="flex-direction:column;">
+    <button class="bb x" style="flex:1;padding:12px;margin-bottom:8px;" onclick="exportCartXL()">📊 Exportar Excel por proveedor</button>
+    <button class="bb" style="flex:1;padding:12px;background:rgba(37,211,102,.15);border:1px solid rgba(37,211,102,.3);color:#25d366;font-weight:700;" onclick="exportCartWA()">💬 Copiar pedido para WhatsApp</button>
+  </div>
+  <div id="cartRecvActions" style="display:none;padding:10px 16px;gap:8px;flex-direction:column;">
+    <button class="bb x" style="padding:13px;" onclick="finishReception()">📥 Confirmar recepción y actualizar inventario</button>
+  </div>
+
+</div>
+
+<!-- MODAL RECEPTION QUANTITY (when partial) -->
+<div class="mo" id="moRecvQty" onclick="closeMoRQ(event)">
+  <div class="md">
+    <div class="mo-title" id="mrqName">Cantidad recibida</div>
+    <div class="mo-fmt" id="mrqMeta"></div>
+    <div style="display:flex;gap:12px;margin-bottom:14px;">
+      <div style="flex:1;background:var(--s2);border-radius:var(--rs);padding:12px;text-align:center;">
+        <div style="font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--t2);margin-bottom:4px;">Pedido</div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:var(--gold2);" id="mrqOrdered">0</div>
+      </div>
+      <div style="flex:1;background:var(--s2);border-radius:var(--rs);padding:12px;text-align:center;">
+        <div style="font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--t2);margin-bottom:4px;">En inventario</div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:var(--t2);" id="mrqCurrent">0</div>
+      </div>
+    </div>
+    <div class="mo-field">
+      <label class="mo-label">Cantidad realmente recibida</label>
+      <input type="number" class="mo-input big" id="mrqInput" min="0" step="1" inputmode="numeric">
+    </div>
+    <div class="mo-btns">
+      <button class="mo-btn ca" onclick="closeMoRQ()">Cancelar</button>
+      <button class="mo-btn co" onclick="confirmRQ()">Confirmar recibido</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ HISTORIAL PAGE ═══════════ -->
+<div class="page" id="page-hist">
+  <div class="hdr">
+    <div class="hdr-top">
+      <div class="brand"><div class="bname">Historial</div><div class="bsub">Evolución del inventario</div></div>
+      <div class="hactions">
+        <button class="btn red" onclick="clearHistory()">🗑 Borrar</button>
+        <button class="btn gold" onclick="exportHistXL()">📊 Excel</button>
+      </div>
+    </div>
+  </div>
+  <div class="hist-section">
+    <div class="hist-filters filter-row" style="margin-bottom:10px;">
+      <select class="fsel" id="histProvFilt" onchange="renderHist()">
+        <option value="all">Todos los productos</option>
+      </select>
+    </div>
+    <div id="histContent"></div>
+  </div>
+</div>
+
+<!-- ═══════════ DASHBOARD PAGE ═══════════ -->
+
+<!-- MODAL VENTAS -->
+<div class="mo" id="moSales" onclick="closeMoSales(event)">
+  <div class="md">
+    <div class="mo-title" id="salesModalTitle">Registrar Ventas</div>
+    <div style="font-size:12px;color:var(--t2);margin-bottom:14px;line-height:1.6;">
+      Cada entrada se guarda de forma independiente y acumulativa. Puedes introducir las ventas de un día, una semana o el período que quieras — nunca se sobreescribe lo anterior.
+    </div>
+    <div class="mo-row">
+      <div class="mo-field">
+        <label class="mo-label">Fecha inicio</label>
+        <input class="mo-input" id="salesDateFrom" type="date">
+      </div>
+      <div class="mo-field">
+        <label class="mo-label">Fecha fin</label>
+        <input class="mo-input" id="salesDateTo" type="date">
+      </div>
+    </div>
+    <div class="mo-field">
+      <label class="mo-label">Ventas totales del período (€)</label>
+      <input class="mo-input big" id="salesTotal" type="number" step="0.01" min="0" placeholder="0.00">
+    </div>
+    <div class="mo-row">
+      <div class="mo-field">
+        <label class="mo-label">Días abierto en el período</label>
+        <input class="mo-input" id="salesDays" type="number" min="1" max="31" placeholder="Ej: 6">
+      </div>
+      <div class="mo-field">
+        <label class="mo-label">Nota (opcional)</label>
+        <input class="mo-input" id="salesNote" placeholder="Ej: Semana Santa">
+      </div>
+    </div>
+    <div class="mo-btns">
+      <button class="mo-btn ca" onclick="closeMoSales()">Cancelar</button>
+      <button class="mo-btn danger" id="salesDelBtn" style="display:none;" onclick="deleteSalesEntry()">Eliminar</button>
+      <button class="mo-btn co" onclick="saveSales()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL ORDEN CATEGORÍAS -->
+<div class="mo" id="moOrder" onclick="closeMoOrder(event)">
+  <div class="md">
+    <div class="mo-title">↕️ Orden de categorías</div>
+    <div style="font-size:12px;color:var(--t2);margin-bottom:14px;">Usa los botones ↑ ↓ para cambiar el orden en que aparecen las categorías.</div>
+    <div id="orderList"></div>
+    <div class="mo-btns" style="margin-top:14px;">
+      <button class="mo-btn ca" onclick="closeMoOrder()">Cerrar</button>
+      <button class="mo-btn co" onclick="resetCatOrder()">Restablecer orden</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL PRODUCTO (añadir/editar) -->
+<div class="mo" id="moProduct" onclick="closeMoP(event)">
+  <div class="md">
+    <div class="mo-title" id="moPTitle">Añadir Producto</div>
+    <div class="mo-field">
+      <label class="mo-label">Nombre del producto</label>
+      <input class="mo-input" id="moName" placeholder="Ej: Vermut Rojo">
+    </div>
+    <div class="mo-row">
+      <div class="mo-field">
+        <label class="mo-label">Categoría</label>
+        <select class="mo-select" id="moCat"></select>
+      </div>
+      <div class="mo-field">
+        <label class="mo-label">Proveedor</label>
+        <select class="mo-select" id="moProv">
+          <option value="LACUNZA">LACUNZA</option>
+          <option value="DISCON">DISCON</option>
+          <option value="EXBEL">EXBEL</option>
+          <option value="LESAGA">LESAGA</option>
+          <option value="EGAPAN">EGAPAN</option>
+          <option value="SADAR">SADAR</option>
+          <option value="VARIOS">VARIOS</option>
+          <option value="__newprov__">＋ Nuevo proveedor...</option>
+        </select>
+      </div>
+    </div>
+    <div class="mo-row">
+      <div class="mo-field">
+        <label class="mo-label">Unidad de conteo</label>
+        <select class="mo-select" id="moUnit">
+          <option value="botellas">Botellas</option>
+          <option value="botellines">Botellines</option>
+          <option value="latas">Latas</option>
+          <option value="cajas">Cajas</option>
+          <option value="barriles">Barriles</option>
+          <option value="bolsas 5kg">Bolsas 5kg</option>
+          <option value="bolsas 2.5kg">Bolsas 2.5kg</option>
+          <option value="bolsas 1kg">Bolsas 1kg</option>
+          <option value="bolsas 2kg">Bolsas 2kg</option>
+          <option value="bolsas 4kg">Bolsas 4kg</option>
+          <option value="kg">Kg</option>
+          <option value="uds">Unidades</option>
+          <option value="bandejas">Bandejas</option>
+          <option value="paquetes 300g">Paquetes 300g</option>
+          <option value="bricks">Bricks</option>
+          <option value="cajas 16ud">Cajas 16ud</option>
+          <option value="cajas 45ud">Cajas 45ud</option>
+          <option value="cajas 4kg">Cajas 4kg</option>
+          <option value="cajas 3kg">Cajas 3kg</option>
+          <option value="cajas 15ud">Cajas 15ud</option>
+          <option value="huevos">Huevos</option>
+          <option value="otro">Otro</option>
+        </select>
+      </div>
+      <div class="mo-field">
+        <label class="mo-label">Emoji</label>
+        <input class="mo-input" id="moEmoji" placeholder="🍺" maxlength="2">
+      </div>
+    </div>
+    <div class="mo-row">
+      <div class="mo-field">
+        <label class="mo-label">Precio/unidad (€)</label>
+        <input class="mo-input" id="moPrice" type="number" step="0.01" min="0" placeholder="0.00">
+      </div>
+      <div class="mo-field">
+        <label class="mo-label">Stock mínimo</label>
+        <input class="mo-input" id="moMin" type="number" step="1" min="0" placeholder="0">
+      </div>
+    </div>
+    <div class="mo-field">
+      <label class="mo-label">Descripción del formato (cómo se calcula el precio)</label>
+      <input class="mo-input" id="moFmt" placeholder="Ej: 1 botella 75cl · precio directo de factura">
+    </div>
+    <div class="mo-btns" id="moPBtns">
+      <button class="mo-btn ca" onclick="closeMoP()">Cancelar</button>
+      <button class="mo-btn danger" id="moDelBtn" onclick="deleteProduct()" style="display:none">Eliminar</button>
+      <button class="mo-btn co" onclick="saveProduct()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CANTIDAD PEDIDO -->
+<div class="mo" id="moCQ" onclick="closeMoCQ(event)">
+  <div class="md">
+    <div class="mo-title" id="cqName">Añadir al pedido</div>
+    <div class="mo-fmt" id="cqMeta"></div>
+    <div class="mo-field" style="margin-top:10px;">
+      <label class="mo-label">Cantidad a pedir</label>
+      <input type="number" class="mo-input big" id="cqIn" min="1" step="1" inputmode="numeric">
+      <div style="font-size:11px;color:var(--t2);margin-top:4px;">Sugerido: <span id="cqPlaceholder"></span></div>
+    </div>
+    <div class="mo-btns">
+      <button class="mo-btn ca" onclick="closeMoCQ()">Cancelar</button>
+      <button class="mo-btn co" onclick="confirmCQ()">Añadir al pedido 🛒</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CANTIDAD -->
+<div class="mo" id="moQty" onclick="closeMoQ(event)">
+  <div class="md">
+    <div class="mo-title" id="mqName"></div>
+    <div class="mo-fmt" id="mqFmt"></div>
+    <div class="mo-field">
+      <label class="mo-label">Cantidad</label>
+      <input type="number" class="mo-input big" id="mqIn" min="0" step="1" inputmode="numeric">
+    </div>
+    <div class="mo-btns">
+      <button class="mo-btn ca" onclick="closeMoQ()">Cancelar</button>
+      <button class="mo-btn co" onclick="confirmQty()">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<div id="syncBadge"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════
+// GOOGLE SHEETS SYNC
+// ═══════════════════════════════════════════════════════════════════
+const GS_URL='https://script.google.com/macros/s/AKfycbxhxqs77F34RoTIHLxIXceY1Ksd-3Mn38YQte_QZHcu4e_nTmnAMbjbzormKgTvhezAeQ/exec';
+let syncing=false,pendingSave=false,saveTimer=null;
+
+function showSync(msg,color){
+  const el=document.getElementById('syncBadge');
+  el.textContent=msg;el.style.color=color||'#9898b8';el.style.opacity='1';
+}
+function hideSync(){document.getElementById('syncBadge').style.opacity='0';}
+
+async function cloudLoad(){
+  showSync('☁ Cargando...','#d4a843');
+  try{
+    const r=await fetch(GS_URL+'?t='+Date.now(),{mode:'cors'});
+    if(!r.ok)throw new Error();
+    const data=await r.json();
+    // Read cnts, cart carefully — only update if data exists
+    if(data.cnts)cnts=JSON.parse(data.cnts);
+    if(data.cart)cart=JSON.parse(data.cart);
+    // Load hist from both cells and merge
+    const toSort=ts=>{try{const p=ts.replace(',','').split(' ');const[d,m,y]=p[0].split('/');return y+'-'+m+'-'+d+' '+(p[1]||'00:00');}catch(e){return ts;}};
+    {
+      const h1=data.hist?JSON.parse(data.hist):[];
+      const h2=data.hist2?JSON.parse(data.hist2):[];
+      const merged=[...hist,...h1,...h2];
+      const seen=new Set();
+      hist=merged.filter(s=>{
+        if(!s||!s.ts)return false;
+        if(seen.has(s.ts))return false;
+        seen.add(s.ts);return true;
+      }).sort((a,b)=>toSort(b.ts).localeCompare(toSort(a.ts))).slice(0,50);
+    }
+    if(data.sales)sales=JSON.parse(data.sales);
+    // Load orderHistory from both cells
+    {
+      const oh1=data.orderHistory?JSON.parse(data.orderHistory):[];
+      const oh2=data.orderHistory2?JSON.parse(data.orderHistory2):[];
+      const merged=[...oh1,...oh2];
+      // Dedup by ts
+      const seen=new Set();
+      orderHistory=merged.filter(o=>{
+        if(!o||!o.ts)return false;
+        if(seen.has(o.ts))return false;
+        seen.add(o.ts);return true;
+      }).slice(0,30);
+    }
+    if(data.edits){
+      try{applyEdits(JSON.parse(data.edits));}catch(e2){console.warn('edits',e2);}
+    }
+    localBackup();
+    populateCatSelect();refreshProvFilter();
+    showSync('✓ Cargado: '+hist.length+' snapshots · '+orderHistory.length+' pedidos','#22c55e');
+    setTimeout(hideSync,3000);
+  }catch(e){
+    // Fallback to localStorage
+    const lc=localStorage.getItem('s8c');
+    const la=localStorage.getItem('s8cart');
+    const lh=localStorage.getItem('s8hist');
+    const le=localStorage.getItem('s8edits');
+    const ls2=localStorage.getItem('s8sales');
+    if(lc)try{cnts=JSON.parse(lc);}catch(e2){}
+    if(la)try{cart=JSON.parse(la);}catch(e2){}
+    const lh2=localStorage.getItem('s8hist2');
+    if(lh)try{const h1=JSON.parse(lh);const h2=lh2?JSON.parse(lh2):[];hist=[...h1,...h2];}catch(e2){}
+    if(le)try{const _e=JSON.parse(le);if(_e&&typeof _e==='object')applyEdits(_e);}catch(e2){}
+    const lo=localStorage.getItem('s8orderhist');
+    if(ls2)try{sales=JSON.parse(ls2);}catch(e2){}
+    const lo2=localStorage.getItem('s8orderhist2');
+    if(lo)try{const o1=JSON.parse(lo);const o2=lo2?JSON.parse(lo2):[];orderHistory=[...o1,...o2];}catch(e2){}
+    showSync('⚠ Sin conexión — datos locales','#f97316');setTimeout(hideSync,3000);
+  }
+  populateCatSelect();refreshProvFilter();
+  renderAll();renderCart();renderHist();
+}
+
+function getEdits(){
+  // Save ALL product modifications (both custom and edits to base products)
+  const edits={};
+  prods.forEach(p=>{
+    const base=DP.find(x=>x.id===p.id);
+    if(!base){edits['new_'+p.id]=p;} // new product
+    else{
+      // Check if any field changed from base
+      if(p.n!==base.n||p.p!==base.p||p.c!==base.c||p.u!==base.u||p.v!==base.v||p.m!==base.m||p.e!==base.e||p.f!==base.f){
+        edits['edit_'+p.id]=p;
+      }
+    }
+  });
+  if(deletedBaseIds&&deletedBaseIds.length)edits['__deleted__']=deletedBaseIds;
+  if(customProvs&&customProvs.length)edits['__custprovs__']=customProvs;
+  if(customCats&&customCats.length)edits['__custcats__']=customCats;
+  if(catOrder&&catOrder.length)edits['__catorder__']=catOrder;
+  return edits;
+}
+
+function applyEdits(edits){
+  if(!edits||typeof edits!=='object')return;
+  // Restore meta state stored by this version
+  if(Array.isArray(edits['__deleted__']))deletedBaseIds=edits['__deleted__'];
+  if(Array.isArray(edits['__custprovs__']))customProvs=edits['__custprovs__'];
+  if(Array.isArray(edits['__custcats__']))customCats=edits['__custcats__'];
+  if(Array.isArray(edits['__catorder__']))catOrder=edits['__catorder__'];
+  // Apply product edits — skip meta keys and validate each entry
+  Object.entries(edits).forEach(([k,saved])=>{
+    if(k.startsWith('__'))return; // skip meta keys
+    if(!saved||typeof saved!=='object'||Array.isArray(saved))return; // skip non-products
+    if(saved.id===undefined||saved.id===null)return; // skip entries without id
+    const idx=prods.findIndex(x=>x.id===saved.id);
+    if(idx>=0)prods[idx]={...prods[idx],...saved};
+    else prods.push(saved);
+  });
+  // Remove any base products marked as deleted
+  if(deletedBaseIds.length)prods=prods.filter(p=>!deletedBaseIds.includes(p.id));
+}
+
+function localBackup(){
+  try{
+    localStorage.setItem('s8c',JSON.stringify(cnts));
+    localStorage.setItem('s8cart',JSON.stringify(cart));
+    localStorage.setItem('s8hist',JSON.stringify(hist.slice(0,25)));
+    localStorage.setItem('s8hist2',JSON.stringify(hist.slice(25,50)));
+    localStorage.setItem('s8edits',JSON.stringify(getEdits()));
+    localStorage.setItem('s8sales',JSON.stringify(sales||[]));
+    localStorage.setItem('s8orderhist',JSON.stringify((orderHistory||[]).slice(0,15)));
+    localStorage.setItem('s8orderhist2',JSON.stringify((orderHistory||[]).slice(15,30)));
+  }catch(e){}
+}
+
+function scheduleSave(){
+  localBackup();
+  if(saveTimer)clearTimeout(saveTimer);
+  saveTimer=setTimeout(cloudSave,1800);
+}
+
+async function cloudSave(){
+  if(syncing){pendingSave=true;return;}
+  syncing=true;showSync('☁ Guardando...','#d4a843');
+  try{
+    // Split hist across 2 cells to avoid Google Sheets 50k char limit
+    const hist1=hist.slice(0,25);
+    const hist2=hist.slice(25,50);
+    // Split orderHistory similarly
+    const oh1=(orderHistory||[]).slice(0,15);
+    const oh2=(orderHistory||[]).slice(15,30);
+    const payload={
+      cnts:JSON.stringify(cnts),
+      cart:JSON.stringify(cart),
+      hist:JSON.stringify(hist1),
+      hist2:JSON.stringify(hist2),
+      edits:JSON.stringify(getEdits()),
+      sales:JSON.stringify(sales||[]),
+      orderHistory:JSON.stringify(oh1),
+      orderHistory2:JSON.stringify(oh2),
+    };
+    const r=await fetch(GS_URL,{method:'POST',body:JSON.stringify(payload),headers:{'Content-Type':'text/plain'},mode:'cors'});
+    const res=await r.json();
+    if(res.ok){showSync('✓ Guardado','#22c55e');setTimeout(hideSync,1800);}
+    else throw new Error(res.error);
+  }catch(e){
+    showSync('⚠ Solo guardado local','#f97316');setTimeout(hideSync,3000);
+  }
+  syncing=false;
+  if(pendingSave){pendingSave=false;cloudSave();}
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// CATÁLOGO BASE — precios auditados desde facturas
+// ═══════════════════════════════════════════════════════════════════
+const DP=[
+  {id:1,c:'🛢️ Barriles',e:'🛢️',n:'Barril EG 50L',u:'barriles',p:95.90,m:1,v:'LACUNZA',f:'575.40€/6 barriles = 95.90€/barril ✓'},
+  {id:2,c:'🛢️ Barriles',e:'🛢️',n:'Barril EG 30L',u:'barriles',p:64.97,m:1,v:'LACUNZA',f:'129.94€/2 barriles = 64.97€/barril ✓'},
+  {id:3,c:'🛢️ Barriles',e:'🛢️',n:'Barril 1906 30L',u:'barriles',p:68.62,m:1,v:'LACUNZA',f:'205.86€/3 barriles = 68.62€/barril ✓'},
+  {id:4,c:'🛢️ Barriles',e:'🛢️',n:'Barril EG Tostada 20L',u:'barriles',p:70.89,m:1,v:'LACUNZA',f:'212.67€/3 barriles = 70.89€/barril ✓'},
+  {id:5,c:'🛢️ Barriles',e:'🛢️',n:'Barril Radler Limón 30L',u:'barriles',p:68.92,m:1,v:'LACUNZA',f:'137.84€/2 barriles = 68.92€/barril ✓'},
+  {id:10,c:'🍺 Cervezas',e:'🍺',n:'EG 1/3 NR (botellín 33cl)',u:'botellines',p:1.01,m:24,v:'LACUNZA',f:'(49.00-0.52)/2 cajas/24 = 1.01€/botellín ✓'},
+  {id:11,c:'🍺 Cervezas',e:'🍺',n:'EG 0,0 Tostada 1/4 (botellín)',u:'botellines',p:0.78,m:24,v:'LACUNZA',f:'(18.93-0.23)/24 = 0.78€/botellín ✓'},
+  {id:12,c:'🍺 Cervezas',e:'🍺',n:'EG Celíacos 1/4 (botellín)',u:'botellines',p:0.77,m:24,v:'LACUNZA',f:'(18.59-0.23)/24 = 0.77€/botellín ✓'},
+  {id:13,c:'🍺 Cervezas',e:'🍺',n:'EG Lata 33cl',u:'latas',p:0.64,m:24,v:'LACUNZA',f:'(30.62-0.12)/2 cajas/24 = 0.64€/lata ✓'},
+  {id:14,c:'🍺 Cervezas',e:'🍺',n:'San Miguel Especial (lata)',u:'latas',p:0.59,m:24,v:'EXBEL',f:'28.39×50%/24 = 0.59€/lata ✓'},
+  {id:15,c:'🍺 Cervezas',e:'🍺',n:'Corona New (botellín 33cl)',u:'botellines',p:1.44,m:12,v:'EXBEL',f:'34.44/24 = 1.44€/botellín ✓'},
+  {id:16,c:'🍺 Cervezas',e:'🍺',n:'Alhambra Reserva 1925 (lata)',u:'latas',p:0.79,m:24,v:'EXBEL',f:'41.92×45%/24 = 0.79€/lata ✓'},
+  {id:17,c:'🍺 Cervezas',e:'🍺',n:'Alhambra Reserva Roja (lata)',u:'latas',p:0.83,m:12,v:'EXBEL',f:'44.29×45%/24 = 0.83€/lata ✓'},
+  {id:20,c:'🥤 Refrescos',e:'🥤',n:'Coca-Cola Original (lata)',u:'latas',p:0.66,m:24,v:'EXBEL',f:'18.56×85%/24 = 0.66€/lata ✓'},
+  {id:21,c:'🥤 Refrescos',e:'🥤',n:'Coca-Cola Zero (lata)',u:'latas',p:0.66,m:24,v:'EXBEL',f:'18.56×85%/24 = 0.66€/lata ✓'},
+  {id:22,c:'🥤 Refrescos',e:'🍋',n:'Kas Limón (lata)',u:'latas',p:0.49,m:12,v:'EXBEL',f:'13.84×85%/24 = 0.49€/lata ✓'},
+  {id:23,c:'🥤 Refrescos',e:'🍊',n:'Kas Naranja (lata)',u:'latas',p:0.49,m:12,v:'EXBEL',f:'13.84×85%/24 = 0.49€/lata ✓'},
+  {id:24,c:'🥤 Refrescos',e:'🍋',n:'Aquarius Limón (lata)',u:'latas',p:0.72,m:12,v:'EXBEL',f:'20.28×85%/24 = 0.72€/lata ✓'},
+  {id:25,c:'🥤 Refrescos',e:'🍊',n:'Aquarius Naranja (lata)',u:'latas',p:0.72,m:12,v:'EXBEL',f:'20.28×85%/24 = 0.72€/lata ✓'},
+  {id:26,c:'🥤 Refrescos',e:'🍵',n:'Nestea Limón (lata)',u:'latas',p:0.72,m:12,v:'EXBEL',f:'20.28×85%/24 = 0.72€/lata ✓'},
+  {id:27,c:'🥤 Refrescos',e:'🫧',n:'Schweppes Tónica 1/5 (botellín)',u:'botellines',p:0.73,m:24,v:'LACUNZA',f:'17.50/24 = 0.73€/botellín ✓'},
+  {id:28,c:'🥤 Refrescos',e:'🍊',n:'Bitter KAS sin alc (lata)',u:'latas',p:0.72,m:24,v:'LACUNZA',f:'17.30/24 = 0.72€/lata ✓'},
+  {id:29,c:'🥤 Refrescos',e:'⚡',n:'Red Bull (lata)',u:'latas',p:1.00,m:12,v:'LACUNZA',f:'24.00/24 = 1.00€/lata ✓'},
+  {id:30,c:'💧 Aguas',e:'💧',n:'San Pellegrino 0.25L',u:'botellas',p:0.71,m:24,v:'LACUNZA',f:'17.00/24 = 0.71€/botella ✓'},
+  {id:31,c:'💧 Aguas',e:'💧',n:'Peñaclara 1/3 PET 33cl',u:'botellas',p:0.38,m:24,v:'LACUNZA',f:'9.05/24 = 0.38€/botella ✓'},
+  {id:32,c:'💧 Aguas',e:'💧',n:'Peñaclara 1.5L PET',u:'botellas',p:1.13,m:6,v:'LACUNZA',f:'6.78/6 = 1.13€/botella ✓'},
+  {id:33,c:'💧 Aguas',e:'🧃',n:'Mosto Auara 1L',u:'botellas',p:2.02,m:6,v:'LACUNZA',f:'24.24/12 = 2.02€/botella ✓'},
+  {id:34,c:'💧 Aguas',e:'💧',n:'Gaseosa 1/2 PET Lacunza',u:'botellas',p:0.42,m:12,v:'LACUNZA',f:'5.05/12 = 0.42€/botella ✓'},
+  {id:35,c:'💧 Aguas',e:'🥛',n:'Batido Kaiku Choco 12B',u:'botellas',p:0.83,m:6,v:'LACUNZA',f:'9.92/12 = 0.83€/botella ✓'},
+  {id:40,c:'🍷 Vinos',e:'🍷',n:'Ramón Bilbao Crianza',u:'botellas',p:5.95,m:6,v:'LACUNZA',f:'107.10/18 = 5.95€/bot ✓'},
+  {id:41,c:'🍷 Vinos',e:'🍷',n:'Vega Castillo Garnacha',u:'botellas',p:2.31,m:6,v:'LACUNZA',f:'69.30/30 = 2.31€/bot ✓'},
+  {id:42,c:'🍷 Vinos',e:'🍷',n:'Pago Cirsus Vendimia',u:'botellas',p:6.10,m:6,v:'LACUNZA',f:'146.40/24 = 6.10€/bot ✓'},
+  {id:43,c:'🍷 Vinos',e:'🥂',n:'Txakoli Getaria Akarregui',u:'botellas',p:6.00,m:6,v:'LACUNZA',f:'144.00/24 = 6.00€/bot ✓'},
+  {id:44,c:'🍷 Vinos',e:'🥂',n:'Yllera 5.5 Blanco',u:'botellas',p:4.66,m:6,v:'LACUNZA',f:'Precio directo por botella ✓'},
+  {id:45,c:'🍷 Vinos',e:'🍷',n:'Manzanilla La Gitana',u:'botellas',p:4.70,m:6,v:'LACUNZA',f:'112.80/4 cajas/6 = 4.70€/bot ✓'},
+  {id:46,c:'🍷 Vinos',e:'🍷',n:'Inurrieta Cuatrocientos',u:'botellas',p:4.95,m:6,v:'LESAGA',f:'Precio directo por botella ✓'},
+  {id:47,c:'🍷 Vinos',e:'🌹',n:'Inurrieta Mediodia Rosado',u:'botellas',p:3.60,m:6,v:'LESAGA',f:'Precio más reciente (alb. 1945) ✓'},
+  {id:48,c:'🍷 Vinos',e:'🥂',n:'Inurrieta Orchidea Blanco',u:'botellas',p:4.20,m:6,v:'LESAGA',f:'Precio directo por botella ✓'},
+  {id:49,c:'🍷 Vinos',e:'🥂',n:'Rueda Solar Vega Verdejo',u:'botellas',p:2.38,m:6,v:'LESAGA',f:'Precio directo por botella ✓'},
+  {id:50,c:'🍷 Vinos',e:'🍷',n:'Inurrieta Tinto Crianza',u:'botellas',p:4.87,m:6,v:'EXBEL',f:'37.48×78%/6 = 4.87€/bot ✓'},
+  {id:51,c:'🍷 Vinos',e:'🥂',n:'Castillo Monjardin Chardonnay',u:'botellas',p:4.45,m:6,v:'EXBEL',f:'28.13×95%/6 = 4.45€/bot ✓'},
+  {id:52,c:'🍷 Vinos',e:'🥂',n:'Inurrieta Blanco Orchidea',u:'botellas',p:3.92,m:6,v:'EXBEL',f:'30.18×78%/6 = 3.92€/bot ✓'},
+  {id:53,c:'🍷 Vinos',e:'🌹',n:'Inurrieta Rosado Mediodia',u:'botellas',p:3.27,m:6,v:'EXBEL',f:'25.16×78%/6 = 3.27€/bot ✓'},
+  {id:60,c:'🥃 Licores',e:'🥃',n:'Martini Rojo',u:'botellas',p:7.75,m:6,v:'LACUNZA',f:'139.50/18 = 7.75€/bot ✓'},
+  {id:61,c:'🥃 Licores',e:'🥃',n:'Martini Blanco',u:'botellas',p:7.75,m:3,v:'LACUNZA',f:'Mismo precio tarifa que Martini Rojo ✓'},
+  {id:62,c:'🥃 Licores',e:'🥃',n:'Baileys 0.70L',u:'botellas',p:10.25,m:2,v:'LACUNZA',f:'61.50/6 = 10.25€/bot ✓'},
+  {id:63,c:'🥃 Licores',e:'🥃',n:'Pacharán Ordoki 25º',u:'botellas',p:7.41,m:3,v:'LACUNZA',f:'44.46/6 = 7.41€/bot ✓'},
+  {id:64,c:'🥃 Licores',e:'🥃',n:'Whisky Cardhu',u:'botellas',p:29.00,m:1,v:'LACUNZA',f:'29.00/1 = 29.00€/bot ✓'},
+  {id:65,c:'🥃 Licores',e:'🥃',n:'Whisky Ballantines',u:'botellas',p:14.50,m:1,v:'VARIOS',f:'Precio estimado · actualizar con factura'},
+  {id:66,c:'🥃 Licores',e:'🥃',n:'Whisky JB',u:'botellas',p:12.50,m:1,v:'VARIOS',f:'Precio estimado · actualizar con factura'},
+  {id:67,c:'🥃 Licores',e:'🥃',n:'Carlos I Brandy',u:'botellas',p:15.00,m:1,v:'LACUNZA',f:'15.00/1 = 15.00€/bot ✓'},
+  {id:68,c:'🥃 Licores',e:'🥃',n:'Campari',u:'botellas',p:12.70,m:1,v:'LACUNZA',f:'12.70/1 = 12.70€/bot ✓'},
+  {id:69,c:'🥃 Licores',e:'🥃',n:'Vodka Absolut 0.7L',u:'botellas',p:11.60,m:3,v:'LACUNZA',f:'11.60€/bot ✓'},
+  {id:70,c:'🥃 Licores',e:'🥃',n:'Ginebra Seagrams 0.7L',u:'botellas',p:13.19,m:2,v:'LACUNZA',f:'79.14/6 = 13.19€/bot ✓'},
+  {id:71,c:'🥃 Licores',e:'🌿',n:'Orujo Hierbas Vaiche',u:'botellas',p:6.43,m:2,v:'LACUNZA',f:'19.29/3 = 6.43€/bot ✓'},
+  {id:72,c:'🥃 Licores',e:'🍎',n:'Sidra Bereziartua D.O.',u:'botellas',p:2.19,m:6,v:'LACUNZA',f:'13.16/6 = 2.19€/bot ✓'},
+  {id:73,c:'🥃 Licores',e:'🥃',n:'Ron Brugal 0.7L',u:'botellas',p:11.85,m:2,v:'LESAGA',f:'71.10/6 = 11.85€/bot ✓'},
+  {id:74,c:'🥃 Licores',e:'🍸',n:'Beefeater Gin 0.7L',u:'botellas',p:11.85,m:3,v:'LESAGA',f:'71.10/6 = 11.85€/bot ✓'},
+  {id:75,c:'🥃 Licores',e:'🍹',n:'Puerto de Indias Gin',u:'botellas',p:16.50,m:2,v:'VARIOS',f:'Precio estimado · actualizar con factura'},
+  {id:76,c:'🥃 Licores',e:'🥃',n:'Bitter Cinzano 20cl (caja)',u:'cajas',p:28.00,m:1,v:'LACUNZA',f:'28.00€/caja · actualizar uds/caja con factura'},
+  {id:77,c:'🥃 Licores',e:'🍹',n:'Ron Cacique',u:'botellas',p:12.00,m:1,v:'VARIOS',f:'Precio estimado · actualizar con factura'},
+  {id:78,c:'🥃 Licores',e:'🍹',n:'Ron Barceló',u:'botellas',p:13.50,m:1,v:'VARIOS',f:'Precio estimado · actualizar con factura'},
+  {id:79,c:'☕ Café y Despensa',e:'☕',n:'Café Lesaga Natural 1kg',u:'kg',p:15.50,m:3,v:'LESAGA',f:'Precio directo por kg ✓'},
+  {id:80,c:'☕ Café y Despensa',e:'☕',n:'Café Lesaga Descaf 1kg',u:'kg',p:16.50,m:1,v:'LESAGA',f:'Precio directo por kg ✓'},
+  {id:81,c:'☕ Café y Despensa',e:'🍵',n:'Manzanilla Lesaga (caja 100)',u:'cajas',p:5.98,m:2,v:'LESAGA',f:'5.98€/caja 100 sobres ✓'},
+  {id:82,c:'☕ Café y Despensa',e:'🍵',n:'Poleo Menta Lesaga (caja 100)',u:'cajas',p:5.98,m:2,v:'LESAGA',f:'5.98€/caja 100 sobres ✓'},
+  {id:83,c:'☕ Café y Despensa',e:'🍬',n:'Azúcar Cucharilla 1kg',u:'kg',p:4.25,m:2,v:'LESAGA',f:'Precio directo ✓'},
+  {id:84,c:'☕ Café y Despensa',e:'🥛',n:'Leche President 1.5L',u:'bricks',p:1.78,m:12,v:'LESAGA',f:'21.36/12 = 1.78€/brick ✓'},
+  {id:85,c:'☕ Café y Despensa',e:'🧁',n:'Mini Magdalenas Rellenas 1.5kg',u:'bolsas',p:10.85,m:1,v:'LESAGA',f:'Precio directo por bolsa ✓'},
+  {id:86,c:'☕ Café y Despensa',e:'🍪',n:'Speculoos Lesaga (caja 300u)',u:'cajas',p:11.95,m:1,v:'LESAGA',f:'11.95€/caja ✓'},
+  {id:87,c:'🥩 Carnes y Aves',e:'🍗',n:'Pechuga Pollo (bolsa 5kg)',u:'bolsas 5kg',p:41.95,m:2,v:'DISCON',f:'8.39€/kg × 5kg = 41.95€/bolsa ✓'},
+  {id:88,c:'🥩 Carnes y Aves',e:'🍗',n:'Alas Pollo Marinadas (bolsa 2.5kg)',u:'bolsas 2.5kg',p:17.03,m:4,v:'DISCON',f:'6.81€/kg × 2.5kg = 17.03€/bolsa · caja = 2 bolsas ✓'},
+  {id:89,c:'🥩 Carnes y Aves',e:'🍗',n:'Alas Pollo Kentucky (bolsa 2.5kg)',u:'bolsas 2.5kg',p:15.80,m:2,v:'DISCON',f:'6.32€/kg × 2.5kg = 15.80€/bolsa ✓'},
+  {id:90,c:'🥩 Carnes y Aves',e:'🥩',n:'Lomo Cerdo (bolsa 5kg)',u:'bolsas 5kg',p:35.70,m:1,v:'DISCON',f:'7.14€/kg × 5kg = 35.70€/bolsa ✓'},
+  {id:91,c:'🥩 Carnes y Aves',e:'🐔',n:'Palomitas Pollo (bolsa 5kg)',u:'bolsas 5kg',p:32.25,m:1,v:'DISCON',f:'6.45€/kg × 5kg = 32.25€/bolsa ✓'},
+  {id:92,c:'🥩 Carnes y Aves',e:'🥙',n:'Kebab Pollo Simons (bolsa 1kg)',u:'bolsas 1kg',p:10.95,m:3,v:'DISCON',f:'10.95€/kg = 10.95€/bolsa 1kg ✓'},
+  {id:93,c:'🥩 Carnes y Aves',e:'🥓',n:'Bacon Loncheado (bolsa 1kg)',u:'bolsas 1kg',p:6.52,m:2,v:'DISCON',f:'6.52€/bolsa 1kg ✓'},
+  {id:94,c:'🥩 Carnes y Aves',e:'🍗',n:'Fingers Pollo Marinado (bolsa 1kg)',u:'bolsas 1kg',p:10.34,m:3,v:'DISCON',f:'10.34€/bolsa · caja = 3 bolsas ✓'},
+  {id:95,c:'🥩 Carnes y Aves',e:'🐔',n:'Pechugas Pollo Empanada (bolsa 2.5kg)',u:'bolsas 2.5kg',p:24.48,m:1,v:'DISCON',f:'Precio directo por bolsa 2.5kg ✓'},
+  {id:96,c:'🥩 Carnes y Aves',e:'🍗',n:'Muslos Pollo',u:'kg',p:4.00,m:2,v:'SADAR',f:'4.00€/kg ✓'},
+  {id:97,c:'🥩 Carnes y Aves',e:'🥩',n:'Panceta Fresca Bacon',u:'kg',p:6.45,m:1,v:'SADAR',f:'6.45€/kg ✓'},
+  {id:98,c:'🥩 Carnes y Aves',e:'🥩',n:'Costilla Cerdo Tiras',u:'kg',p:8.25,m:1,v:'SADAR',f:'8.25€/kg ✓'},
+  {id:99,c:'🥩 Carnes y Aves',e:'🍖',n:'Carrillera Cerdo al Vino (ud)',u:'uds',p:5.99,m:4,v:'DISCON',f:'5.99€/ud · 6uds = 35.94€ ✓'},
+  {id:100,c:'🍔 Hamburguesas',e:'🍔',n:'Hamburguesa Buey/Vaca (caja 16ud)',u:'cajas 16ud',p:36.99,m:1,v:'DISCON',f:'36.99€/caja 16uds (2.31€/ud) ✓'},
+  {id:101,c:'🍔 Hamburguesas',e:'🥩',n:'Cachopo Jamón/Queso/Piquillo (ud)',u:'uds',p:15.34,m:4,v:'DISCON',f:'15.34€/ud ✓'},
+  {id:102,c:'🍔 Hamburguesas',e:'🍞',n:'Pan Brioche Maxi (caja 45ud)',u:'cajas 45ud',p:28.04,m:1,v:'DISCON',f:'28.04€/caja 45 panes ✓'},
+  {id:103,c:'🍟 Fritos',e:'🫑',n:'Bola Pimiento Picante Orly (caja)',u:'cajas',p:8.25,m:3,v:'SADAR',f:'8.25€/caja ✓'},
+  {id:104,c:'🍟 Fritos',e:'🍘',n:'Croqueta Jamón Congelado (caja)',u:'cajas',p:8.15,m:3,v:'SADAR',f:'8.15€/caja ✓'},
+  {id:105,c:'🍟 Fritos',e:'🧀',n:'Frito Jamón y Queso (caja)',u:'cajas',p:8.15,m:2,v:'SADAR',f:'8.15€/caja ✓'},
+  {id:106,c:'🍟 Fritos',e:'🦑',n:'Rabas Enharinadas (caja 4x1kg)',u:'cajas 4kg',p:36.12,m:2,v:'DISCON',f:'9.03€/kg × 4kg = 36.12€/caja ✓'},
+  {id:107,c:'🍟 Fritos',e:'🦑',n:'Chipiron Froxa (bolsa 4kg)',u:'bolsas 4kg',p:36.68,m:1,v:'DISCON',f:'9.17€/kg × 4kg = 36.68€/bolsa ✓'},
+  {id:108,c:'🍟 Fritos',e:'🦑',n:'Chipiron Anedilco (bolsa 2kg)',u:'bolsas 2kg',p:19.90,m:1,v:'DISCON',f:'9.95€/kg × 2kg = 19.90€/bolsa ✓'},
+  {id:109,c:'🍟 Fritos',e:'🧀',n:'Fingers Mozzarella (caja 3x1kg)',u:'cajas 3kg',p:7.05,m:1,v:'DISCON',f:'7.05€/caja ✓'},
+  {id:110,c:'🍟 Fritos',e:'🥓',n:'Torrezno Soria (bandeja 1.5kg)',u:'bandejas',p:22.91,m:2,v:'DISCON',f:'22.91€/bandeja ✓'},
+  {id:111,c:'🍟 Fritos',e:'🥙',n:'Ajoarriero (bandeja 1kg)',u:'bandejas',p:14.15,m:1,v:'SADAR',f:'14.15€/bandeja ✓'},
+  {id:112,c:'🦐 Marisco',e:'🦐',n:'Langostino Torpedo (paquete 300g)',u:'paquetes 300g',p:3.30,m:20,v:'DISCON',f:'3.30€/paquete 300g ✓'},
+  {id:113,c:'🦐 Marisco',e:'🦐',n:'Gamba Pelada 30-50 (bolsa 1kg)',u:'bolsas 1kg',p:8.95,m:2,v:'DISCON',f:'8.95€/bolsa 1kg ✓'},
+  {id:114,c:'🦐 Marisco',e:'🦐',n:'Langostino Cocido 40-60 (bolsa 2kg)',u:'bolsas 2kg',p:19.94,m:1,v:'DISCON',f:'9.97€/kg × 2kg = 19.94€/bolsa ✓'},
+  {id:115,c:'🥔 Patatas',e:'🍟',n:'Patatas Bravas McCain (bolsa 2.5kg)',u:'bolsas 2.5kg',p:2.59,m:4,v:'DISCON',f:'2.59€/bolsa 2.5kg ✓'},
+  {id:116,c:'🥔 Patatas',e:'🥔',n:'Patata Teja SureCrisp (bolsa 2.5kg)',u:'bolsas 2.5kg',p:7.63,m:4,v:'DISCON',f:'3.05€/kg × 2.5kg = 7.63€/bolsa ✓'},
+  {id:117,c:'🍽️ Elaborados',e:'🥚',n:'Base Tortilla Patata/Cebolla (ud)',u:'uds',p:3.91,m:6,v:'DISCON',f:'3.91€/ud ✓'},
+  {id:118,c:'🍽️ Elaborados',e:'🍩',n:'Churro Lazo (bolsa 1kg)',u:'bolsas 1kg',p:2.85,m:3,v:'DISCON',f:'2.85€/bolsa ✓'},
+  {id:119,c:'🍽️ Elaborados',e:'🍮',n:'Tarta Queso Manchego 1.5kg',u:'uds',p:19.93,m:1,v:'DISCON',f:'19.93€/ud ✓'},
+  {id:120,c:'🍽️ Elaborados',e:'🍮',n:'Tarta Ferrero 1.7kg',u:'uds',p:19.90,m:1,v:'DISCON',f:'19.90€/ud ✓'},
+  {id:121,c:'🥚 Huevos y Lácteos',e:'🥚',n:'Huevo CL-L',u:'huevos',p:2.60,m:15,v:'SADAR',f:'2.60€/huevo · caja = 15 huevos = 39.00€ ✓'},
+  {id:122,c:'🥖 Panadería',e:'🥖',n:'Pan Bokata Semillas (ud)',u:'uds',p:0.43,m:30,v:'EGAPAN',f:'43.27€/2 cajas/50 panes = 0.43€/pan ✓'},
+];
+
+const CO=['🛢️ Barriles','🍺 Cervezas','🥤 Refrescos','💧 Aguas','🍷 Vinos','🥃 Licores','☕ Café y Despensa','🥩 Carnes y Aves','🍔 Hamburguesas','🍟 Fritos','🦐 Marisco','🥔 Patatas','🍽️ Elaborados','🥚 Huevos y Lácteos','🥖 Panadería'];
+const PROVS=['LACUNZA','DISCON','EXBEL','LESAGA','EGAPAN','SADAR','VARIOS'];
+
+let prods=[],cnts={},cart={},hist=[],acat='Todos',editId=null,qtyId=null;
+let deletedBaseIds=[],customProvs=[],customCats=[],catOrder=[];
+
+// ── HELPERS ──────────────────────────────────────────────────────
+function E(id){return document.getElementById(id);}
+function fmt(n){return n.toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2})+' €';}
+function fmtShort(n){return n.toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2});}
+function now(){return new Date().toLocaleString('es-ES',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});}
+
+function toast(msg,color){
+  const t=E('toast');t.textContent=msg;
+  t.style.background=color||'var(--green)';
+  t.classList.add('sh');setTimeout(()=>t.classList.remove('sh'),2500);
+}
+
+// ── PAGE NAV ─────────────────────────────────────────────────────
+function showPage(id){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+  E('page-'+id).classList.add('active');
+  E('tab-'+id).classList.add('active');
+  if(id==='cart'){if(!recvMode)renderCartNormal();else renderRecvMode();}
+  if(id==='hist')renderHist();
+  if(id==='dash')renderDash();
+}
+
+// ── INIT ─────────────────────────────────────────────────────────
+function init(){
+  deletedBaseIds=[];customProvs=[];customCats=[];catOrder=[];
+  prods=JSON.parse(JSON.stringify(DP));
+  sales=[];orderHistory=[];
+  // Render base catalog immediately — never shows blank screen
+  populateCatSelect();
+  renderAll();
+  // Load saved data async — re-renders when done
+  cloudLoad();
+}
+
+function getEffectiveCO(){
+  // Base order + custom cats, respecting user-defined catOrder
+  const base=[...CO,...customCats.filter(c=>!CO.includes(c))];
+  if(!catOrder||!catOrder.length)return base;
+  const out=[];
+  catOrder.forEach(c=>{if(base.includes(c))out.push(c);});
+  base.forEach(c=>{if(!out.includes(c))out.push(c);});
+  return out;
+}
+
+function refreshProvFilter(){
+  const sel=E('pvFilt');if(!sel)return;
+  const existing=[...sel.options].map(o=>o.value);
+  customProvs.forEach(p=>{
+    if(!existing.includes(p)){
+      const o=document.createElement('option');o.value=p;o.textContent='📦 '+p;
+      sel.appendChild(o);
+    }
+  });
+}
+
+function populateCatSelect(){
+  const sel=E('moCat');if(!sel)return;
+  sel.innerHTML='';
+  getEffectiveCO().forEach(c=>{const o=document.createElement('option');o.value=c;o.textContent=c;sel.appendChild(o);});
+  const oNew=document.createElement('option');oNew.value='__new__';oNew.textContent='+ Nueva categoría...';sel.appendChild(oNew);
+}
+
+// ── RENDER INVENTARIO ─────────────────────────────────────────────
+function filtered(){
+  const q=E('qIn').value.toLowerCase();
+  const pv=E('pvFilt').value;
+  const sf=E('showFilt').value;
+  return prods.filter(p=>{
+    if(pv!=='all'&&p.v!==pv)return false;
+    if(acat!=='Todos'&&p.c!==acat)return false;
+    if(q&&!p.n.toLowerCase().includes(q)&&!p.v.toLowerCase().includes(q))return false;
+    if(sf==='counted'&&cnts[p.id]===undefined)return false;
+    if(sf==='low'&&!(cnts[p.id]!==undefined&&cnts[p.id]<(p.m||0)))return false;
+    if(sf==='uncounted'&&cnts[p.id]!==undefined)return false;
+    return true;
+  });
+}
+
+function getCats(){
+  const pv=E('pvFilt').value||'all',q=(E('qIn').value||'').toLowerCase();
+  const present=new Set(prods.filter(p=>(pv==='all'||p.v===pv)&&(!q||p.n.toLowerCase().includes(q))).map(p=>p.c));
+  const eff=getEffectiveCO();
+  const ordered=eff.filter(c=>present.has(c));
+  [...present].forEach(c=>{if(!ordered.includes(c))ordered.push(c);});
+  return['Todos',...ordered];
+}
+
+function renderTabs(){
+  const cs=getCats();const pv=E('pvFilt').value;const q=E('qIn').value.toLowerCase();
+  if(!cs.includes(acat))acat='Todos';
+  E('ctabs').innerHTML=cs.map(cat=>{
+    const pp=prods.filter(p=>(pv==='all'||p.v===pv)&&(cat==='Todos'||p.c===cat)&&(!q||p.n.toLowerCase().includes(q)));
+    const done=pp.filter(p=>cnts[p.id]!==undefined).length;
+    return`<div class="ctab ${acat===cat?'a':''}" onclick="setC('${cat.replace(/'/g,"\\'")}')">
+      ${cat}<span class="cc">${done}/${pp.length}</span></div>`;
+  }).join('');
+}
+
+function renderProds(){
+  const fl=filtered();
+  if(!fl.length){E('plist').innerHTML='<div class="empty"><div style="font-size:34px;margin-bottom:8px">🔍</div><div>Sin resultados</div></div>';return;}
+  const grp={};
+  fl.forEach(p=>{if(!grp[p.c])grp[p.c]=[];grp[p.c].push(p);});
+  const effCO=getEffectiveCO();const keys=effCO.filter(k=>grp[k]).concat(Object.keys(grp).filter(k=>!effCO.includes(k)));
+  let h='';
+  keys.forEach(cat=>{
+    const pp=grp[cat];
+    let cv=0;pp.forEach(p=>{const v=cnts[p.id];if(v!==undefined)cv+=v*p.p;});
+    const done=pp.filter(p=>cnts[p.id]!==undefined).length;
+    h+=`<div class="shdr"><div class="stit">${cat}</div><div class="sline"></div><div class="sval">${cv>0?fmt(cv):done+'/'+pp.length}</div></div><div class="plist">`;
+    pp.forEach(p=>{
+      const val=cnts[p.id],counted=val!==undefined,lo=counted&&val<(p.m||0);
+      const inCart=cart[p.id]!==undefined;
+      const cls=lo?'lo':(inCart?'incart':(counted?'ok':''));
+      const iv=counted?val*p.p:0;
+      h+=`<div class="pi ${cls}">
+        <div class="pem">${p.e||'📦'}</div>
+        <div class="pinf">
+          <div class="pname">${p.n}</div>
+          <div class="pmeta">
+            <span class="tag tu">${p.u}</span>
+            <span class="tag tp">${fmt(p.p)}</span>
+            <span class="tag tv">${p.v}</span>
+            ${lo?'<span class="tag tl">⚠ BAJO</span>':''}
+            ${inCart?`<span class="tag tc">🛒 ${cart[p.id]}</span>`:''}
+          </div>
+        </div>
+        ${counted&&iv>0?`<div class="pval">${fmt(iv)}</div>`:''}
+        <div class="pi-actions">
+          <div class="cart-btn ${inCart?'incart':''}" onclick="toggleCart(${p.id})" title="Añadir al pedido">🛒</div>
+          <div class="edit-btn" onclick="openEdit(${p.id})" title="Editar">✏️</div>
+        </div>
+        <div class="cnt">
+          <div class="cb m" onclick="hM(${p.id})">−</div>
+          <div class="cv ${counted?'v':''}" onclick="openQty(${p.id})">${val??0}</div>
+          <div class="cb" onclick="hP(${p.id})">＋</div>
+        </div>
+      </div>`;
+    });
+    h+='</div>';
+  });
+  E('plist').innerHTML=h;
+}
+
+function renderStats(){
+  const pv=E('pvFilt').value;
+  const tgt=pv==='all'?prods:prods.filter(p=>p.v===pv);
+  const tot=tgt.length,counted=tgt.filter(p=>cnts[p.id]!==undefined).length;
+  const low=tgt.filter(p=>cnts[p.id]!==undefined&&cnts[p.id]<(p.m||0)).length;
+  const pct=tot>0?Math.round(counted/tot*100):0;
+  let val=0,vc=0;
+  prods.forEach(p=>{const v=cnts[p.id];if(v!==undefined){val+=v*p.p;vc++;}});
+  E('vt').textContent=fmt(val);
+  E('vs').textContent=`${vc} líneas contadas`;
+  E('sTot').textContent=tot;E('sCnt').textContent=counted;
+  E('sLow').textContent=low;E('sPnd').textContent=tot-counted;
+  E('pf').style.width=pct+'%';
+  E('pl').textContent=`${counted}/${tot} (${pct}%)`;
+  // cart badge
+  const cartCount=Object.keys(cart).length;
+  const badge=E('cartBadge');
+  if(cartCount>0){badge.textContent=cartCount;badge.style.display='block';}
+  else badge.style.display='none';
+}
+
+function renderAll(){renderTabs();renderProds();renderStats();if(E('page-dash')?.classList.contains('active'))renderDash();}
+
+// ── COUNTER ──────────────────────────────────────────────────────
+function hP(id){
+  const prev=cnts[id]??0;
+  cnts[id]=(prev+1);
+  scheduleSave();renderAll();
+}
+function hM(id){
+  const c=cnts[id]??0;
+  if(c<=0)delete cnts[id];else cnts[id]=c-1;
+  scheduleSave();renderAll();
+}
+
+// ── MODAL CANTIDAD ────────────────────────────────────────────────
+function openQty(id){
+  const p=prods.find(x=>x.id===id);qtyId=id;
+  E('mqName').textContent=p.n;
+  E('mqFmt').textContent='📦 '+p.f;
+  E('mqIn').value=cnts[id]??'';
+  E('moQty').classList.add('open');
+  setTimeout(()=>E('mqIn').focus(),200);
+}
+function closeMoQ(e){if(!e||e.target===E('moQty'))E('moQty').classList.remove('open');}
+function confirmQty(){
+  const raw=E('mqIn').value;
+  if(raw===''&&qtyId!==null){delete cnts[qtyId];scheduleSave();renderAll();closeMoQ();return;}
+  const val=parseFloat(raw);
+  if(!isNaN(val)&&val>=0&&qtyId!==null){cnts[qtyId]=+val.toFixed(1);scheduleSave();renderAll();toast('✓ Cantidad guardada');}
+  closeMoQ();
+}
+
+// ── CARRITO ───────────────────────────────────────────────────────
+function toggleCart(id){
+  if(cart[id]!==undefined){
+    delete cart[id];
+    scheduleSave();renderAll();
+    toast('Eliminado del pedido','#ef4444');
+  } else {
+    openCartQtyMo(id);
+  }
+}
+function openCartQtyMo(id){
+  const p=prods.find(x=>x.id===id);if(!p)return;
+  E('cqName').textContent=p.n;
+  E('cqMeta').textContent=p.u+' · '+fmt(p.p)+'/'+p.u+' · '+p.v;
+  E('cqIn').value='';
+  const suggested=Math.max(1,(p.m||1)-(cnts[id]||0));
+  E('cqPlaceholder').textContent=suggested+' '+p.u;
+  E('moCQ').dataset.pid=id;
+  E('moCQ').classList.add('open');
+  setTimeout(()=>E('cqIn').focus(),200);
+}
+function closeMoCQ(e){if(!e||e.target===E('moCQ'))E('moCQ').classList.remove('open');}
+function confirmCQ(){
+  const id=parseInt(E('moCQ').dataset.pid);
+  const val=parseInt(E('cqIn').value);
+  const p=prods.find(x=>x.id===id);if(!p)return;
+  if(isNaN(val)||val<=0){toast('Introduce una cantidad válida','#ef4444');return;}
+  cart[id]=val;
+  E('moCQ').classList.remove('open');
+  scheduleSave();renderAll();
+  toast('🛒 '+p.n+' × '+val+' añadido');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// CART — NORMAL MODE & RECEPTION MODE
+// ═══════════════════════════════════════════════════════════════════
+let recvMode=false;
+let recvQtys={};    // {productId: qty received (null=not yet, number=confirmed)}
+let orderHistory=[]; // persisted order receipts
+let recvQtyId=null;
+
+function renderCart(){
+  if(recvMode){renderRecvMode();return;}
+  renderCartNormal();
+}
+
+// ── NORMAL MODE ───────────────────────────────────────────────────
+function renderCartNormal(){
+  const cartCount=Object.keys(cart).length;
+  // Toggle recv button visibility
+  const btnRecv=E('btnStartRecv');
+  if(btnRecv)btnRecv.style.display=cartCount>0?'flex':'none';
+
+  // No early return — always render full page including order history
+
+  const byProv={};
+  Object.entries(cart).forEach(([idStr,qty])=>{
+    const id=parseInt(idStr);const p=prods.find(x=>x.id===id);if(!p)return;
+    if(!byProv[p.v])byProv[p.v]=[];
+    byProv[p.v].push({p,qty});
+  });
+
+  let total=0;let h='<div class="divider"></div>';
+
+  if(cartCount===0){
+    h+=`<div class="cart-empty"><div class="cart-empty-icon">🛒</div><div class="cart-empty-txt">El carrito está vacío<br><br><span style="font-size:12px;color:var(--t3)">Pulsa 🛒 en cualquier producto del inventario para añadirlo</span></div></div>`;
+  }
+
+  Object.entries(byProv).sort().forEach(([prov,items])=>{
+    let provTotal=0;
+    items.forEach(({p,qty})=>provTotal+=p.p*qty);
+    total+=provTotal;
+    h+=`<div class="cart-section">
+      <div class="cart-prov-hdr">
+        <div class="cart-prov-name">📦 ${prov}</div>
+        <div class="cart-prov-total">${fmt(provTotal)}</div>
+      </div>`;
+    items.forEach(({p,qty})=>{
+      const lineTotal=p.p*qty;
+      const curStock=cnts[p.id]??0;
+      h+=`<div class="cart-item">
+        <div class="ci-em">${p.e||'📦'}</div>
+        <div class="ci-inf">
+          <div class="ci-name">${p.n}</div>
+          <div class="ci-meta">
+            <span>${fmt(p.p)}/${p.u}</span>
+            <span>·</span>
+            <span style="color:var(--t3)">Stock actual: ${curStock}</span>
+            <span>·</span>
+            <span style="color:var(--gold2)">Total: ${fmt(lineTotal)}</span>
+          </div>
+        </div>
+        <div class="ci-qty">
+          <div class="ci-qty-btn" onclick="cartQtyChange(${p.id},-1)">−</div>
+          <div class="ci-qty-val">${qty}</div>
+          <div class="ci-qty-btn" onclick="cartQtyChange(${p.id},1)">＋</div>
+        </div>
+        <div class="ci-del" onclick="cartRemove(${p.id})">🗑</div>
+      </div>`;
+    });
+    h+='</div>';
+  });
+
+  // Order history section
+  if(orderHistory.length>0){
+    h+=`<div style="padding:14px 16px 6px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+        <div style="font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--t2);">Historial de pedidos recibidos</div>
+        <div style="font-size:10px;color:var(--t3);">${orderHistory.length} pedido${orderHistory.length>1?'s':''}</div>
+      </div>`;
+    orderHistory.forEach((order,idx)=>{
+      const statusCls=order.hasDiscrepancy?'oh-partial':'oh-complete';
+      const statusTxt=order.hasDiscrepancy?'⚠ Con incidencias':'✓ Completo';
+      const totItems=order.items.length;
+      const totDisc=order.items.reduce((s,i)=>s+Math.abs(i.received-i.ordered),0);
+      const domId=`oh_detail_${idx}`;
+      h+=`<div class="orderhist-entry">
+        <div class="oh-hdr" onclick="toggleOHDetail('${domId}')" style="cursor:pointer;">
+          <div style="flex:1;min-width:0;">
+            <div class="oh-date">${order.ts}</div>
+            <div style="font-size:13px;font-weight:700;color:var(--text);margin-top:3px;">${order.provs.join(' · ')}</div>
+            <div style="font-size:11px;color:var(--t2);margin-top:2px;">${totItems} producto${totItems>1?'s':''} · ${fmt(order.valueReceived)}</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+            <span class="oh-status ${statusCls}">${statusTxt}</span>
+            <span style="color:var(--t2);font-size:16px;" id="oh_arrow_${idx}">›</span>
+          </div>
+        </div>
+        <div id="${domId}" style="display:none;">`;
+
+      // Group items by provider
+      const byProv={};
+      order.items.forEach(item=>{if(!byProv[item.prov||'—'])byProv[item.prov||'—']=[];byProv[item.prov||'—'].push(item);});
+      Object.entries(byProv).sort().forEach(([prov,items])=>{
+        h+=`<div style="background:var(--s2);padding:6px 14px;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--t2);border-bottom:1px solid var(--border);">📦 ${prov}</div>`;
+        items.forEach(item=>{
+          const disc=item.received-item.ordered;
+          const discColor=disc===0?'var(--green)':disc<0?'var(--red)':'var(--blue)';
+          const discBadge=disc!==0?`<span class="oh-item-disc ${disc<0?'rd-less':'rd-more'}">${disc>0?'+':''}${disc} ${item.unit||''}</span>`:'<span style="color:var(--green);font-size:10px;">✓</span>';
+          h+=`<div class="oh-item">
+            <div class="oh-item-name">${item.emoji||'📦'} ${item.name}</div>
+            <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+              <div style="text-align:right;">
+                <div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--t2);">Pedido: ${item.ordered}</div>
+                <div style="font-family:'DM Mono',monospace;font-size:12px;font-weight:700;color:${discColor};">Recibido: ${item.received}</div>
+              </div>
+              ${discBadge}
+            </div>
+          </div>`;
+        });
+      });
+
+      h+=`<div style="padding:10px 14px;background:var(--s2);display:flex;align-items:center;justify-content:space-between;border-top:1px solid var(--border);">
+        <div style="font-size:11px;color:var(--t2);">
+          ${order.hasDiscrepancy?`<span style="color:var(--red);">⚠ ${totDisc} uds con diferencia</span>`:`<span style="color:var(--green);">✓ Pedido completo</span>`}
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <span style="font-family:'DM Mono',monospace;font-size:12px;color:var(--gold2);">${fmt(order.valueReceived)}</span>
+          <button onclick="deleteOrderHist(${idx})" style="background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.3);border-radius:6px;padding:4px 10px;font-size:11px;color:var(--red);cursor:pointer;">Eliminar</button>
+        </div>
+      </div>
+      </div></div>`;
+    });
+    h+='</div>';
+  }
+
+  E('cartContent').innerHTML=h;
+  if(cartCount>0){
+    E('cartTotal').textContent=fmt(total);
+    E('cartTotalLbl').textContent='Total pedido estimado';
+    E('cartTotalSub').textContent=`${cartCount} producto${cartCount>1?'s':''} · ${[...new Set(Object.entries(cart).map(([id])=>prods.find(x=>x.id===parseInt(id))?.v).filter(Boolean))].join(', ')}`;
+  } else {
+    E('cartTotal').textContent='0,00 €';
+    E('cartTotalLbl').textContent='Pedido';
+    E('cartTotalSub').textContent='';
+  }
+}
+
+function cartQtyChange(id,delta){
+  if(cart[id]===undefined)return;
+  cart[id]=Math.max(1,cart[id]+delta);
+  scheduleSave();renderCart();renderStats();
+}
+function cartRemove(id){delete cart[id];scheduleSave();renderCart();renderStats();}
+function clearCart(){
+  if(recvMode){cancelReception();return;}
+  if(confirm('¿Vaciar el carrito de pedido?')){cart={};scheduleSave();renderCart();renderStats();}
+}
+function deleteOrderHist(idx){
+  if(!confirm('¿Eliminar este pedido del historial?'))return;
+  orderHistory.splice(idx,1);scheduleSave();renderCart();
+}
+
+function toggleOHDetail(domId){
+  const el=E(domId);
+  if(!el)return;
+  const isOpen=el.style.display!=='none';
+  el.style.display=isOpen?'none':'block';
+  // Update arrow
+  const idx=domId.replace('oh_detail_','');
+  const arrow=E('oh_arrow_'+idx);
+  if(arrow)arrow.textContent=isOpen?'›':'˅';
+}
+
+// ── RECEPTION MODE ────────────────────────────────────────────────
+function startReception(){
+  if(Object.keys(cart).length===0){toast('El carrito está vacío','#ef4444');return;}
+  recvMode=true;
+  recvQtys={};
+  // Pre-fill recvQtys with ordered quantities (not confirmed yet)
+  Object.entries(cart).forEach(([id,qty])=>{recvQtys[parseInt(id)]=null;});
+
+  // Switch UI to reception mode
+  E('cartNormalHdr').style.display='none';
+  E('cartRecvHdr').style.display='flex';
+  E('cartNormalActions').style.display='none';
+  E('cartRecvActions').style.display='flex';
+  E('recvProgressBar').style.display='block';
+  E('cartTotalLbl').textContent='Valor a recibir';
+  renderRecvMode();
+  toast('📥 Modo recepción activado','#22c55e');
+}
+
+function cancelReception(){
+  recvMode=false;recvQtys={};
+  E('cartNormalHdr').style.display='block';
+  E('cartRecvHdr').style.display='none';
+  E('cartNormalActions').style.display='flex';
+  E('cartRecvActions').style.display='none';
+  E('recvProgressBar').style.display='none';
+  renderCartNormal();
+  toast('Recepción cancelada','#f97316');
+}
+
+function renderRecvMode(){
+  const byProv={};
+  Object.entries(cart).forEach(([idStr,qty])=>{
+    const id=parseInt(idStr);const p=prods.find(x=>x.id===id);if(!p)return;
+    if(!byProv[p.v])byProv[p.v]=[];
+    byProv[p.v].push({p,orderedQty:qty,recvQty:recvQtys[id]});
+  });
+
+  const total=Object.keys(cart).length;
+  const confirmed=Object.values(recvQtys).filter(v=>v!==null).length;
+  const pct=total>0?Math.round(confirmed/total*100):0;
+
+  // Update progress
+  E('recvProgress').textContent=`${confirmed} de ${total} productos confirmados (${pct}%)`;
+  E('recvProgressFill').style.width=pct+'%';
+
+  // Total value confirmed so far
+  let valConfirmed=0;
+  Object.entries(recvQtys).forEach(([id,qty])=>{
+    if(qty!==null){const p=prods.find(x=>x.id===parseInt(id));if(p)valConfirmed+=p.p*qty;}
+  });
+  E('cartTotal').textContent=fmt(valConfirmed);
+  E('cartTotalSub').textContent=`${confirmed}/${total} confirmados`;
+
+  let h='<div class="divider"></div>';
+  Object.entries(byProv).sort().forEach(([prov,items])=>{
+    const provConfirmed=items.filter(i=>i.recvQty!==null).length;
+    h+=`<div class="cart-section">
+      <div class="cart-prov-hdr">
+        <div class="cart-prov-name">📦 ${prov}</div>
+        <div class="cart-prov-total" style="color:${provConfirmed===items.length?'var(--green)':'var(--t2)'};">${provConfirmed}/${items.length} ✓</div>
+      </div>`;
+    items.forEach(({p,orderedQty,recvQty})=>{
+      const id=p.id;
+      const isConfirmed=recvQty!==null;
+      const disc=isConfirmed?recvQty-orderedQty:0;
+      const itemCls=!isConfirmed?'':(disc===0?'received':disc>0?'partial':'partial');
+      const checkCls=!isConfirmed?'':(disc===0?'done':'part');
+      const checkIcon=!isConfirmed?'○':(disc===0?'✓':'≠');
+      const curStock=cnts[p.id]??0;
+      const discBadge=isConfirmed&&disc!==0?`<span class="recv-discrepancy ${disc<0?'rd-less':'rd-more'}">${disc>0?'+':''}${disc}</span>`:'';
+
+      h+=`<div class="recv-item ${itemCls}">
+        <div class="recv-check ${checkCls}" onclick="recvToggle(${id})">${checkIcon}</div>
+        <div class="recv-info">
+          <div class="recv-name">${p.e||'📦'} ${p.n}</div>
+          <div class="recv-meta">
+            <span>Pedido: <strong>${orderedQty}</strong> ${p.u}</span>
+            <span>·</span>
+            <span style="color:var(--t3)">Stock: ${curStock}</span>
+            ${isConfirmed?`<span>·</span><span style="color:${disc===0?'var(--green)':disc<0?'var(--red)':'var(--blue)'}">Recibido: <strong>${recvQty}</strong></span>`:''}
+            ${discBadge}
+          </div>
+        </div>
+        <div class="recv-qty-wrap">
+          ${isConfirmed?`
+            <div class="recv-qty-btn" onclick="recvChangeQty(${id},-1)">−</div>
+            <div class="recv-qty-val">${recvQty}</div>
+            <div class="recv-qty-btn" onclick="recvChangeQty(${id},1)">＋</div>
+          `:`
+            <button onclick="openMoRQ(${id})" style="background:var(--s2);border:1px solid var(--border);border-radius:var(--rs);padding:6px 10px;font-size:11px;font-weight:600;color:var(--t2);cursor:pointer;">Parcial</button>
+          `}
+        </div>
+      </div>`;
+    });
+    h+='</div>';
+  });
+
+  // Summary if all confirmed
+  if(confirmed===total&&total>0){
+    const discrepancies=Object.entries(recvQtys).filter(([id,qty])=>qty!==cart[parseInt(id)]);
+    h+=`<div class="recv-summary-card">
+      <div style="font-size:13px;font-weight:700;color:${discrepancies.length===0?'var(--green)':'#fbbf24'};margin-bottom:10px;">
+        ${discrepancies.length===0?'✓ Pedido completo sin diferencias':'⚠ Pedido con diferencias — revisa antes de confirmar'}
+      </div>
+      ${discrepancies.length>0?`<div style="font-size:12px;color:var(--t2);margin-bottom:10px;">${discrepancies.length} producto${discrepancies.length>1?'s con':'con'} diferencia respecto a lo pedido.</div>`:''}
+      <button onclick="finishReception()" style="width:100%;padding:13px;background:var(--green);border:none;border-radius:var(--rs);font-family:DM Sans,sans-serif;font-size:14px;font-weight:700;color:white;cursor:pointer;">
+        📥 Confirmar recepción y actualizar inventario
+      </button>
+    </div>`;
+  }
+
+  E('cartContent').innerHTML=h;
+}
+
+function recvToggle(id){
+  // If not confirmed yet → confirm with full ordered quantity
+  if(recvQtys[id]===null){
+    recvQtys[id]=cart[id];
+  } else {
+    // Already confirmed → unconfirm
+    recvQtys[id]=null;
+  }
+  renderRecvMode();
+}
+
+function recvChangeQty(id,delta){
+  if(recvQtys[id]===null)return;
+  recvQtys[id]=Math.max(0,recvQtys[id]+delta);
+  renderRecvMode();
+}
+
+function openMoRQ(id){
+  const p=prods.find(x=>x.id===id);recvQtyId=id;
+  E('mrqName').textContent=p.n;
+  E('mrqMeta').textContent=`📦 ${p.u} · ${fmt(p.p)}/${p.u} · ${p.v}`;
+  E('mrqOrdered').textContent=cart[id];
+  E('mrqCurrent').textContent=cnts[id]??0;
+  E('mrqInput').value=recvQtys[id]??cart[id];
+  E('moRecvQty').classList.add('open');
+  setTimeout(()=>E('mrqInput').focus(),200);
+}
+function closeMoRQ(e){if(!e||e.target===E('moRecvQty'))E('moRecvQty').classList.remove('open');}
+function confirmRQ(){
+  const val=parseFloat(E('mrqInput').value);
+  if(isNaN(val)||val<0){toast('Cantidad inválida','#ef4444');return;}
+  recvQtys[recvQtyId]=+val.toFixed(1);
+  closeMoRQ();renderRecvMode();
+}
+
+function recvConfirmAll(){
+  // Mark all as received with ordered quantity
+  Object.entries(cart).forEach(([idStr,qty])=>{
+    recvQtys[parseInt(idStr)]=qty;
+  });
+  renderRecvMode();
+  toast('✓ Todos marcados como recibidos','#22c55e');
+}
+
+function finishReception(){
+  const confirmed=Object.values(recvQtys).filter(v=>v!==null).length;
+  const total=Object.keys(cart).length;
+  if(confirmed===0){toast('Confirma al menos un producto','#ef4444');return;}
+  if(confirmed<total){
+    if(!confirm(`Hay ${total-confirmed} producto${total-confirmed>1?'s':''}  sin confirmar. ¿Finalizar igualmente?`))return;
+  }
+
+  // Build order history entry
+  const provSet=new Set();
+  const items=[];
+  let valueReceived=0;
+  let hasDiscrepancy=false;
+
+  Object.entries(recvQtys).forEach(([idStr,qty])=>{
+    if(qty===null)return; // skip unconfirmed
+    const id=parseInt(idStr);
+    const p=prods.find(x=>x.id===id);
+    if(!p)return;
+    provSet.add(p.v);
+    const ordered=cart[id];
+    const disc=qty-ordered;
+    if(disc!==0)hasDiscrepancy=true;
+    valueReceived+=p.p*qty;
+    items.push({id,name:p.n,emoji:p.e,unit:p.u,prov:p.v,ordered,received:qty,disc,price:p.p});
+    // ✅ UPDATE INVENTORY: add received qty to current stock
+    cnts[id]=(cnts[id]??0)+qty;
+  });
+
+  // Save to order history
+  const entry={
+    ts:now(),
+    provs:[...provSet].sort(),
+    items,
+    hasDiscrepancy,
+    valueReceived:+valueReceived.toFixed(2)
+  };
+  if(!orderHistory)orderHistory=[];
+  orderHistory.unshift(entry);
+  if(orderHistory.length>30)orderHistory=orderHistory.slice(0,30);
+
+  // Clear cart of received items
+  Object.keys(recvQtys).forEach(id=>{
+    if(recvQtys[parseInt(id)]!==null)delete cart[parseInt(id)];
+  });
+
+  // Save and exit reception mode
+  recvMode=false;recvQtys={};
+  scheduleSave();
+  saveSnapshot(); // auto-snapshot after receiving
+  E('cartNormalHdr').style.display='block';
+  E('cartRecvHdr').style.display='none';
+  E('cartNormalActions').style.display='flex';
+  E('cartRecvActions').style.display='none';
+  E('recvProgressBar').style.display='none';
+
+  renderAll();renderCart();
+  const msg=hasDiscrepancy?'📥 Pedido recibido con incidencias — revisa el historial':'📥 Pedido recibido y inventario actualizado';
+  toast(msg,hasDiscrepancy?'#fbbf24':'#22c55e');
+  showPage('inv'); // go back to inventory to see updated counts
+}
+
+function exportCartXL(){
+  const byProv={};
+  Object.entries(cart).forEach(([idStr,qty])=>{
+    const id=parseInt(idStr);
+    const p=prods.find(x=>x.id===id);if(!p)return;
+    if(!byProv[p.v])byProv[p.v]=[];
+    byProv[p.v].push({p,qty});
+  });
+  if(Object.keys(byProv).length===0){toast('El carrito está vacío','#ef4444');return;}
+  const wb=XLSX.utils.book_new();
+  const now2=new Date();
+  let totalGlobal=0;
+  Object.entries(byProv).sort().forEach(([prov,items])=>{
+    const rows=[
+      [`PEDIDO A ${prov} — La Sede`,'','',''],
+      ['Fecha:',now2.toLocaleDateString('es-ES'),'',''],
+      ['','','',''],
+      ['PRODUCTO','UNIDAD','CANTIDAD','PRECIO/UD','TOTAL']
+    ];
+    let provTotal=0;
+    items.forEach(({p,qty})=>{
+      const lt=+(p.p*qty).toFixed(2);provTotal+=lt;totalGlobal+=lt;
+      rows.push([p.n,p.u,qty,p.p,lt]);
+    });
+    rows.push(['','','','TOTAL PROVEEDOR:',+provTotal.toFixed(2)]);
+    const ws=XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols']=[{wch:36},{wch:14},{wch:10},{wch:12},{wch:14}];
+    XLSX.utils.book_append_sheet(wb,ws,prov.substring(0,31));
+  });
+  // Hoja resumen
+  const resumen=[['RESUMEN PEDIDO — La Sede',''],['Fecha:',now2.toLocaleDateString('es-ES')],['','']];
+  Object.entries(byProv).sort().forEach(([prov,items])=>{
+    let pt=0;items.forEach(({p,qty})=>pt+=p.p*qty);
+    resumen.push([prov,+pt.toFixed(2)]);
+  });
+  resumen.push(['','']);resumen.push(['TOTAL GLOBAL',+totalGlobal.toFixed(2)]);
+  const wsR=XLSX.utils.aoa_to_sheet(resumen);
+  wsR['!cols']=[{wch:20},{wch:14}];
+  XLSX.utils.book_append_sheet(wb,wsR,'RESUMEN');
+  XLSX.writeFile(wb,`pedido_lasede_${now2.toISOString().slice(0,10)}.xlsx`);
+  toast('📊 Pedido exportado por proveedor');
+}
+
+// ── HISTORIAL ─────────────────────────────────────────────────────
+function snapExpand(snap){
+  // Expand compressed snapshot {i,q} items to full format using current prods catalog
+  if(!snap||!snap.items)return snap;
+  if(snap.items.length>0&&snap.items[0].id!==undefined)return snap; // already full format
+  const expanded={...snap};
+  expanded.items=snap.items.map(({i,q})=>{
+    const p=prods.find(x=>x.id===i);
+    if(!p)return null;
+    return{id:i,n:p.n,c:p.c,v:p.v,u:p.u,p:p.p,qty:q,val:+(q*p.p).toFixed(2)};
+  }).filter(Boolean);
+  // Expand compressed changes {i,p,c} to full format
+  if(snap.changes){
+    expanded.changes=snap.changes.map(ch=>{
+      if(ch.n)return ch; // already full format
+      const p=prods.find(x=>x.id===ch.i);
+      if(!p)return null;
+      const delta=ch.c-ch.p;
+      return{id:ch.i,n:p.n,type:delta>0?'up':'down',prev:ch.p,curr:ch.c,delta};
+    }).filter(Boolean);
+  }
+  return expanded;
+}
+
+function saveSnapshot(){
+  // Build compressed snapshot — only store id+qty to stay under Sheets 50k cell limit
+  const ts=now();
+  const snap={ts,label:'Inventario '+ts,items:[],changes:[]};
+
+  // Compressed items: just {i:id, q:qty}
+  prods.forEach(p=>{
+    const v=cnts[p.id];
+    if(v!==undefined)snap.items.push({i:p.id,q:v});
+  });
+
+  // Calculate changes vs last snapshot (using expanded format for comparison)
+  if(hist.length>0){
+    const lastExpanded=snapExpand(hist[0]);
+    snap.items.forEach(({i,q})=>{
+      const p=prods.find(x=>x.id===i);
+      if(!p)return;
+      const prev=lastExpanded.items.find(x=>x.id===i);
+      if(!prev)snap.changes.push({i,p:0,c:q});
+      else if(prev.qty!==q)snap.changes.push({i,p:prev.qty,c:q});
+    });
+  }
+
+  hist.unshift(snap);
+  if(hist.length>50)hist=hist.slice(0,50);
+  localBackup();
+  if(saveTimer)clearTimeout(saveTimer);
+  cloudSave();
+  renderHist();
+  toast('📸 Snapshot guardado ('+snap.items.length+' productos)');
+}
+
+function renderHist(){
+  const filtEl=E('histProvFilt');
+  const histContentEl=E('histContent');
+  if(!filtEl||!histContentEl)return; // elements not ready
+  // Ensure hist is sorted newest-first before rendering
+  const toSort=ts=>{try{const p=ts.replace(',','').split(' ');const[d,m,y]=p[0].split('/');return y+'-'+m+'-'+d+' '+(p[1]||'00:00');}catch(e){return ts;}};
+  hist.sort((a,b)=>toSort(b.ts).localeCompare(toSort(a.ts)));
+  const fp=filtEl.value||'all';
+  // Update filter options
+  const allNames=[...new Set(prods.map(p=>p.n))].sort();
+  filtEl.innerHTML='<option value="all">Todos los productos</option>'+
+    allNames.map(n=>`<option value="${n}" ${n===fp?'selected':''}>${n}</option>`).join('');
+
+  if(hist.length===0){
+    histContentEl.innerHTML='<div class="hist-empty"><div style="font-size:40px;margin-bottom:10px">📈</div><div>No hay historial aún<br><br><span style="font-size:12px;color:var(--t3)">Pulsa Guardar snapshot en el inventario para registrar el estado actual</span></div></div>';
+    return;
+  }
+  let h='';
+  hist.forEach((snap,idx)=>{
+    // Expand compressed snapshot for display
+    const s=snapExpand(snap);
+    const changes=s.changes||[];
+    const filteredChanges=fp==='all'?changes:changes.filter(c=>c.n===fp);
+    const filteredItems=fp==='all'?s.items:s.items.filter(i=>i.n===fp);
+    const totalVal=filteredItems.reduce((sum,i)=>sum+(i.val||0),0);
+
+    h+=`<div class="hist-entry">
+      <div class="he-hdr">
+        <div class="he-label">${s.label||s.ts}</div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div class="he-date">${fmt(totalVal)}</div>
+          <div onclick="deleteSnap(${idx})" style="cursor:pointer;color:var(--t3);font-size:12px;padding:2px 6px;border-radius:4px;background:var(--s2);">✕</div>
+        </div>
+      </div>
+      <div class="he-date" style="margin-bottom:8px;">${s.ts}</div>`;
+
+    if(filteredChanges.length>0){
+      h+=`<div style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--t2);margin-bottom:6px;">Cambios respecto al anterior</div>`;
+      h+=`<div class="he-items">`;
+      filteredChanges.forEach(c=>{
+        const sign=c.delta>0?'+':'';
+        const cls=c.type==='new'?'chg-new':(c.type==='up'?'chg-up':'chg-dn');
+        h+=`<div class="he-item">
+          <div class="he-item-name">${c.n}</div>
+          <div class="he-item-chg ${cls}">${c.type==='new'?'NUEVO':sign+c.delta} ${c.type!=='new'?`(${c.prev}→${c.curr})`:''}</div>
+        </div>`;
+      });
+      h+=`</div>`;
+    } else if(idx===0){
+      h+=`<div style="font-size:11px;color:var(--t2);">${filteredItems.length} productos · Primer snapshot</div>`;
+    } else {
+      h+=`<div style="font-size:11px;color:var(--t2);">Sin cambios respecto al anterior</div>`;
+    }
+    h+='</div>';
+  });
+  histContentEl.innerHTML=h;
+}
+
+function deleteSnap(idx){
+  hist.splice(idx,1);scheduleSave();renderHist();toast('Snapshot eliminado','#ef4444');
+}
+function clearHistory(){
+  if(confirm('¿Borrar todo el historial?')){hist=[];scheduleSave();renderHist();toast('Historial borrado','#ef4444');}
+}
+
+function exportHistXL(){
+  if(hist.length===0){toast('No hay historial','#ef4444');return;}
+  const wb=XLSX.utils.book_new();
+  // Hoja resumen de snapshots
+  const rows=[['HISTORIAL DE INVENTARIO — La Sede','','',''],['','','','']];
+  hist.forEach(rawSnap=>{
+    const snap=snapExpand(rawSnap);
+    rows.push([snap.label||snap.ts,snap.ts,'Productos contados:',snap.items.length]);
+    rows.push(['PRODUCTO','CATEGORÍA','CANTIDAD','VALOR']);
+    snap.items.forEach(i=>rows.push([i.n,i.c,i.qty,+(i.val||0).toFixed(2)]));
+    const tv=snap.items.reduce((s,i)=>s+(i.val||0),0);
+    rows.push(['','','TOTAL:',+tv.toFixed(2)]);
+    rows.push(['','','','']);
+  });
+  const ws=XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols']=[{wch:36},{wch:18},{wch:10},{wch:14}];
+  XLSX.utils.book_append_sheet(wb,ws,'Historial');
+  XLSX.writeFile(wb,`historial_lasede_${new Date().toISOString().slice(0,10)}.xlsx`);
+  toast('📊 Historial exportado');
+}
+
+// ── MODAL PRODUCTO (AÑADIR / EDITAR) ─────────────────────────────
+function openAddMo(){
+  editId=null;
+  E('moPTitle').textContent='Añadir Producto';
+  E('moName').value='';E('moEmoji').value='📦';
+  E('moPrice').value='';E('moMin').value='';E('moFmt').value='';
+  E('moCat').value=E('moCat').options[0]?.value;
+  E('moProv').value='LACUNZA';E('moUnit').value='botellas';
+  E('moDelBtn').style.display='none';
+  populateCatSelect();
+  E('moProduct').classList.add('open');
+  setTimeout(()=>E('moName').focus(),200);
+}
+
+function openEdit(id){
+  const p=prods.find(x=>x.id===id);if(!p)return;
+  editId=id;
+  E('moPTitle').textContent='Editar Producto';
+  populateCatSelect();
+  E('moName').value=p.n;E('moEmoji').value=p.e||'📦';
+  E('moPrice').value=p.p;E('moMin').value=p.m||0;E('moFmt').value=p.f||'';
+  E('moProv').value=p.v;
+  // Set unit
+  const uOpt=[...E('moUnit').options].find(o=>o.value===p.u);
+  if(uOpt)E('moUnit').value=p.u;
+  // Set cat
+  const cOpt=[...E('moCat').options].find(o=>o.value===p.c);
+  if(cOpt)E('moCat').value=p.c;
+  E('moDelBtn').style.display='block';
+  E('moDelBtn').textContent=DP.find(x=>x.id===id)?'🗑 Eliminar (catálogo)':'🗑 Eliminar';
+  E('moProduct').classList.add('open');
+}
+
+function closeMoP(e){if(!e||e.target===E('moProduct'))E('moProduct').classList.remove('open');}
+
+function saveProduct(){
+  let cat=E('moCat').value;
+  if(cat==='__new__'){
+    cat=prompt('Nombre de la nueva categoría:');
+    if(!cat?.trim()){toast('Categoría requerida','#ef4444');return;}
+    cat=cat.trim();
+  }
+  const name=E('moName').value.trim();
+  if(!name){toast('Nombre requerido','#ef4444');return;}
+  const price=parseFloat(E('moPrice').value)||0;
+  const min=parseInt(E('moMin').value)||0;
+  const unit=E('moUnit').value;
+  const prov=E('moProv').value;
+  const emoji=E('moEmoji').value||'📦';
+  const f=E('moFmt').value.trim();
+
+  if(editId!==null){
+    const idx=prods.findIndex(x=>x.id===editId);
+    if(idx>=0){
+      prods[idx]={...prods[idx],n:name,c:cat,p:price,m:min,u:unit,v:prov,e:emoji,f};
+    }
+    toast('✓ Producto actualizado');
+  } else {
+    const newId=Math.max(0,...prods.map(x=>x.id))+1;
+    prods.push({id:newId,c:cat,e:emoji,n:name,u:unit,p:price,m:min,v:prov,f});
+    toast('✓ Producto añadido');
+  }
+  E('moProduct').classList.remove('open');
+  populateCatSelect();
+  scheduleSave();renderAll();
+}
+
+function deleteProduct(){
+  if(editId===null)return;
+  const isBase=!!DP.find(x=>x.id===editId);
+  if(!confirm(isBase?'Este producto es del catálogo base y volverá si reinicias la app. ¿Eliminar de todas formas?':'¿Eliminar este producto?'))return;
+  if(isBase){deletedBaseIds.push(editId);}
+  prods=prods.filter(x=>x.id!==editId);
+  delete cnts[editId];delete cart[editId];
+  E('moProduct').classList.remove('open');
+  scheduleSave();renderAll();toast('Producto eliminado','#ef4444');
+}
+
+// ── OTRAS FUNCIONES ───────────────────────────────────────────────
+function setC(cat){acat=cat;renderAll();E('plist').scrollIntoView({behavior:'smooth',block:'start'});}
+
+function confirmReset(){
+  if(confirm('¿Reiniciar todos los conteos? Los productos y el historial se mantienen.')){
+    cnts={};scheduleSave();renderAll();toast('🔄 Conteos reiniciados');
+  }
+}
+
+function exportXL(){
+  const now2=new Date();let total=0;
+  const rows=[
+    ['INVENTARIO LA SEDE · v8','','','','','',''],
+    ['Fecha:',now2.toLocaleDateString('es-ES'),'Hora:',now2.toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'}),'','',''],
+    ['','','','','','',''],
+    ['CATEGORÍA','PRODUCTO','PROVEEDOR','UNIDAD','PRECIO/UD','CANTIDAD','VALOR','ESTADO']
+  ];
+  CO.forEach(cat=>{
+    const pp=prods.filter(p=>p.c===cat);if(!pp.length)return;
+    let cv=0;
+    pp.forEach(p=>{
+      const v=cnts[p.id],val=v!==undefined?+(v*p.p).toFixed(2):0;
+      if(v!==undefined){cv+=val;total+=val;}
+      rows.push([cat,p.n,p.v,p.u,p.p,v??'—',v!==undefined?val:'—',v===undefined?'SIN CONTAR':v<(p.m||0)?'⚠ BAJO':'✓ OK']);
+    });
+    rows.push(['','SUBTOTAL '+cat.replace(/[^\w\s]/g,'').trim(),'','','','',+cv.toFixed(2),'']);
+    rows.push(['','','','','','','','']);
+  });
+  rows.push(['VALOR TOTAL','','','','','',+total.toFixed(2),'']);
+  const ws=XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols']=[{wch:20},{wch:36},{wch:10},{wch:16},{wch:12},{wch:10},{wch:14},{wch:12}];
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'Inventario');
+  XLSX.writeFile(wb,`inventario_lasede_${now2.toISOString().slice(0,10)}.xlsx`);
+  toast('📊 Excel exportado');
+}
+
+
+// ═══════════════════════════════════════════════════════════════════
+// VENTAS & FOOD COST
+// ═══════════════════════════════════════════════════════════════════
+let sales=[];
+
+let editSalesIdx=null;
+
+function todayStr(){return new Date().toISOString().slice(0,10);}
+function weekAgoStr(){const d=new Date();d.setDate(d.getDate()-6);return d.toISOString().slice(0,10);}
+function fmtDate(s){if(!s)return'';const[y,m,d]=s.split('-');return`${d}/${m}/${y}`;}
+function parseDateRange(from,to){
+  if(from&&to)return`${fmtDate(from)} — ${fmtDate(to)}`;
+  if(from)return`Desde ${fmtDate(from)}`;
+  if(to)return`Hasta ${fmtDate(to)}`;
+  return'Sin fecha';
+}
+
+function openSalesModal(idx=null){
+  // idx=null → new entry | idx=number → edit existing
+  editSalesIdx=(idx===null?null:parseInt(idx));
+  E('salesModalTitle').textContent=editSalesIdx!==null?'Editar registro de ventas':'Nueva entrada de ventas';
+  E('salesDelBtn').style.display=editSalesIdx!==null?'block':'none';
+  if(editSalesIdx!==null && sales[editSalesIdx]){
+    const s=sales[editSalesIdx];
+    E('salesDateFrom').value=s.dateFrom||'';
+    E('salesDateTo').value=s.dateTo||'';
+    E('salesTotal').value=s.total||'';
+    E('salesDays').value=s.days||'';
+    E('salesNote').value=s.note||'';
+  } else {
+    E('salesDateFrom').value=weekAgoStr();
+    E('salesDateTo').value=todayStr();
+    E('salesTotal').value='';
+    E('salesDays').value='';
+    E('salesNote').value='';
+  }
+  E('moSales').classList.add('open');
+  setTimeout(()=>E('salesTotal').focus(),200);
+}
+
+function closeMoSales(e){if(!e||e.target===E('moSales'))E('moSales').classList.remove('open');}
+
+function saveSales(){
+  const total=parseFloat(E('salesTotal').value);
+  if(isNaN(total)||total<=0){toast('Introduce el importe total de ventas','#ef4444');return;}
+  const dateFrom=E('salesDateFrom').value;
+  const dateTo=E('salesDateTo').value;
+  if(!dateFrom||!dateTo){toast('Introduce las fechas del período','#ef4444');return;}
+  if(dateTo<dateFrom){toast('La fecha fin debe ser posterior al inicio','#ef4444');return;}
+  if(!sales||!Array.isArray(sales))sales=[];
+  const entry={
+    id: editSalesIdx!==null ? (sales[editSalesIdx]?.id||Date.now()) : Date.now(),
+    dateFrom, dateTo,
+    label: parseDateRange(dateFrom,dateTo),
+    total,
+    days: parseInt(E('salesDays').value)||0,
+    note: E('salesNote').value.trim(),
+    savedAt: now()
+  };
+  if(editSalesIdx!==null && editSalesIdx<sales.length){
+    sales[editSalesIdx]=entry;  // update in place, no overwrite of others
+    toast('💰 Ventas actualizadas');
+  } else {
+    sales.unshift(entry);       // add new at top
+    if(sales.length>120)sales=sales.slice(0,120);
+    toast('💰 Ventas registradas');
+  }
+  editSalesIdx=null;
+  scheduleSave();
+  E('moSales').classList.remove('open');
+  showPage('dash');renderDash();
+}
+
+function deleteSalesEntry(){
+  if(editSalesIdx===null||editSalesIdx===undefined){toast('Error al eliminar','#ef4444');return;}
+  if(!confirm('¿Eliminar este registro de ventas?'))return;
+  sales.splice(editSalesIdx,1);
+  editSalesIdx=null;
+  scheduleSave();
+  E('moSales').classList.remove('open');
+  renderDash();
+  toast('Registro eliminado','#ef4444');
+}
+
+
+E('mrqInput')?.addEventListener('keydown',e=>{if(e.key==='Enter')confirmRQ();if(e.key==='Escape')closeMoRQ();});
+
+// ═══════════════════════════════════════════════════════════════════
+// DASHBOARD
+// ═══════════════════════════════════════════════════════════════════
+const CAT_COLORS=['#d4a843','#22c55e','#3b82f6','#a855f7','#f97316','#ef4444','#06b6d4','#84cc16','#f59e0b','#6366f1','#ec4899','#14b8a6','#8b5cf6','#f43f5e','#10b981'];
+
+function renderDash(){
+  const content=E('dashContent');if(!content)return;
+
+  // ── 1. KPI cards ──
+  const totalVal=prods.reduce((s,p)=>{const v=cnts[p.id];return s+(v!==undefined?v*p.p:0);},0);
+  const counted=prods.filter(p=>cnts[p.id]!==undefined).length;
+  const lowProds=prods.filter(p=>cnts[p.id]!==undefined&&cnts[p.id]<(p.m||0));
+  const cartProds=Object.keys(cart).length;
+  const lastSale=sales&&sales.length>0?sales[0]:null; // kept as fallback only
+
+  // Update alert bar
+  const alertBar=E('alertBar');
+  if(alertBar){
+    if(lowProds.length>0){
+      alertBar.style.display='block';
+      E('alertMsg').textContent=`⚠ ${lowProds.length} producto${lowProds.length>1?'s':''} bajo mínimo`;
+    } else alertBar.style.display='none';
+  }
+
+  let h='';
+
+  // KPIs
+  h+=`<div class="dash-card">
+    <div class="dash-card-title">Resumen actual</div>
+    <div class="dash-kpi-grid">
+      <div class="dash-kpi"><div class="dash-kpi-val" style="color:var(--gold2)">${fmtShort(totalVal)}€</div><div class="dash-kpi-lbl">Valor inventario</div></div>
+      <div class="dash-kpi"><div class="dash-kpi-val" style="color:var(--blue)">${counted}/${prods.length}</div><div class="dash-kpi-lbl">Productos contados</div></div>
+      <div class="dash-kpi"><div class="dash-kpi-val" style="color:${lowProds.length>0?'var(--red)':'var(--green)'}">${lowProds.length}</div><div class="dash-kpi-lbl">Bajo mínimo</div></div>
+      <div class="dash-kpi"><div class="dash-kpi-val" style="color:var(--purple)">${cartProds}</div><div class="dash-kpi-lbl">En pedido</div></div>
+    </div>
+  </div>`;
+
+  // ── 2. Food cost (if sales registered) ──
+  if(lastSale){
+    const costTotal=prods.reduce((s,p)=>{const v=cnts[p.id];return s+(v!==undefined?v*p.p:0);},0);
+    const fc=lastSale.total>0?(costTotal/lastSale.total*100):0;
+    const fcColor=fc<25?'var(--green)':fc<35?'var(--gold)':fc<50?'var(--orange)':'var(--red)';
+    const fcLabel=fc<25?'Excelente':fc<35?'Óptimo':fc<50?'Atención':fc>50?'Crítico':'—';
+    const avgDaily=(lastSale.days&&lastSale.days>0)?(lastSale.total/lastSale.days):0;
+    h+=`<div class="dash-card">
+      <div class="dash-card-title" style="display:flex;align-items:center;justify-content:space-between;">
+        <span>Food Cost — ${lastSale.label||lastSale.period||''}</span>
+        <button onclick="openSalesModal(null)" style="border:none;color:var(--t2);font-size:11px;cursor:pointer;padding:2px 6px;border-radius:4px;background:var(--s2);">＋ Nueva</button>
+      </div>
+      <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:4px;">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:40px;color:${fcColor};line-height:1">${fc.toFixed(1)}%</div>
+        <div style="font-size:13px;font-weight:700;color:${fcColor}">${fcLabel}</div>
+      </div>
+      <div class="foodcost-bar"><div class="foodcost-fill" style="width:${Math.min(fc,100)}%;background:${fcColor};"></div></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:10px;">
+        <div style="background:var(--s2);border-radius:var(--rs);padding:8px;text-align:center;">
+          <div style="font-family:'DM Mono',monospace;font-size:14px;color:var(--gold2)">${fmtShort(lastSale.total)}€</div>
+          <div style="font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--t2);margin-top:2px;">Ventas período</div>
+        </div>
+        <div style="background:var(--s2);border-radius:var(--rs);padding:8px;text-align:center;">
+          <div style="font-family:'DM Mono',monospace;font-size:14px;color:var(--text)">${fmtShort(costTotal)}€</div>
+          <div style="font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--t2);margin-top:2px;">Coste inventario</div>
+        </div>
+        ${avgDaily>0?`<div style="background:var(--s2);border-radius:var(--rs);padding:8px;text-align:center;"><div style="font-family:'DM Mono',monospace;font-size:14px;color:var(--blue)">${fmtShort(avgDaily)}€</div><div style="font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--t2);margin-top:2px;">Media/día</div></div>`:''}
+        ${lastSale.days>0?`<div style="background:var(--s2);border-radius:var(--rs);padding:8px;text-align:center;"><div style="font-family:'DM Mono',monospace;font-size:14px;color:var(--t2)">${lastSale.days}</div><div style="font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--t2);margin-top:2px;">Días abierto</div></div>`:''}
+      </div>
+      ${lastSale.note?`<div style="font-size:11px;color:var(--t3);margin-top:8px;font-style:italic;">📝 ${lastSale.note}</div>`:''}
+      <div style="font-size:10px;color:var(--t3);margin-top:8px;">Referencia: &lt;25% excelente · &lt;35% óptimo · &lt;50% atención</div>
+    </div>`;
+
+    // Sales history table (all entries)
+    if(sales.length>=1){
+      h+=`<div class="dash-card">
+        <div class="dash-card-title" style="display:flex;align-items:center;justify-content:space-between;">
+          <span>Historial de ventas (${sales.length} entrada${sales.length>1?'s':''})</span>
+          <button onclick="openSalesModal(null)" style="background:var(--gold);border:none;border-radius:var(--rs);padding:4px 10px;font-size:11px;font-weight:700;color:#111;cursor:pointer;">＋ Nueva entrada</button>
+        </div>`;
+      sales.forEach((s,i)=>{
+        const dias=s.days>0?` · ${s.days} días`:'';
+        const media=s.days>0?` · ${fmtShort(s.total/s.days)}€/día`:'';
+        h+=`<div class="trend-row" style="cursor:pointer;align-items:flex-start;padding:10px 0;" onclick="openSalesModal(${i})">
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:13px;font-weight:600;color:var(--text);">${s.label||'—'}</div>
+            <div style="font-size:10px;color:var(--t2);margin-top:2px;">${s.savedAt||''}${dias}${media}</div>
+            ${s.note?`<div style="font-size:10px;color:var(--t3);font-style:italic;margin-top:1px;">📝 ${s.note}</div>`:''}
+          </div>
+          <div style="text-align:right;flex-shrink:0;margin-left:12px;">
+            <div style="font-family:'DM Mono',monospace;font-size:14px;color:var(--gold2);font-weight:700;">${fmtShort(s.total)}€</div>
+            <div style="font-size:10px;color:var(--t3);margin-top:2px;">toca para editar</div>
+          </div>
+        </div>`;
+      });
+      h+='</div>';
+    }
+  } else {
+    h+=`<div class="dash-card" style="text-align:center;padding:20px;">
+      <div style="font-size:28px;margin-bottom:8px;">💰</div>
+      <div style="font-size:13px;color:var(--t2);margin-bottom:4px;">Sin datos de ventas registrados</div>
+      <div style="font-size:11px;color:var(--t3);margin-bottom:14px;">Registra las ventas de cada período para ver el food cost y la evolución</div>
+      <button class="btn gold" onclick="openSalesModal()" style="margin:0 auto;">＋ Registrar ventas</button>
+    </div>`;
+  }
+
+  // ── 3. Alertas de stock ──
+  if(lowProds.length>0){
+    h+=`<div class="dash-card">
+      <div class="dash-card-title">⚠ Productos bajo mínimo</div>`;
+    lowProds.forEach(p=>{
+      const deficit=(p.m||0)-(cnts[p.id]||0);
+      h+=`<div class="dash-alert red" onclick="toggleCart(${p.id});renderCart();renderDash();">
+        <div class="da-icon">${p.e||'📦'}</div>
+        <div class="da-info">
+          <div class="da-title" style="color:var(--red)">${p.n}</div>
+          <div class="da-sub">Tienes: ${cnts[p.id]} · Mínimo: ${p.m} · Faltan: ${deficit} ${p.u}</div>
+        </div>
+        <div class="da-action red">${cart[p.id]!==undefined?'✓ En pedido':'+ Pedir'}</div>
+      </div>`;
+    });
+    h+='</div>';
+  }
+
+  // ── 4. Alertas inteligentes de consumo ──
+  if(hist.length>=2){
+    const last=hist[0],prev=hist[1];
+    const alerts=[];
+    last.items.forEach(item=>{
+      const prevItem=prev.items.find(x=>x.id===item.id);
+      if(prevItem&&prevItem.qty>item.qty){
+        const consumed=prevItem.qty-item.qty;
+        const daysEst=item.qty>0?Math.floor(item.qty/consumed*7):0; // rough weekly estimate
+        if(daysEst<=7&&item.qty>0){
+          alerts.push({...item,consumed,daysEst});
+        }
+      }
+    });
+    if(alerts.length>0){
+      h+=`<div class="dash-card">
+        <div class="dash-card-title">🧠 Alertas inteligentes <span style="font-size:9px;color:var(--t3)">basadas en consumo</span></div>`;
+      alerts.slice(0,8).forEach(a=>{
+        const p=prods.find(x=>x.id===a.id);
+        const cls=a.daysEst<=3?'red':'yellow';
+        const msg=a.daysEst<=3?`⚠ Quedan ~${a.daysEst} días`:`Quedan ~${a.daysEst} días`;
+        h+=`<div class="dash-alert ${cls}" onclick="toggleCart(${a.id});renderCart();renderDash();">
+          <div class="da-icon">${p?.e||'📦'}</div>
+          <div class="da-info">
+            <div class="da-title" style="color:${cls==='red'?'var(--red)':'#fbbf24'}">${a.n}</div>
+            <div class="da-sub">Stock: ${a.qty} ${a.u} · Consumo último período: ${a.consumed} ${a.u} · ${msg}</div>
+          </div>
+          <div class="da-action ${cls}">${cart[a.id]!==undefined?'✓ Pedido':'+ Pedir'}</div>
+        </div>`;
+      });
+      h+='</div>';
+    }
+  }
+
+  // ── 5. Valor por categoría ──
+  const catVals={};
+  prods.forEach(p=>{const v=cnts[p.id];if(v!==undefined&&v>0){if(!catVals[p.c])catVals[p.c]=0;catVals[p.c]+=v*p.p;}});
+  const catSorted=Object.entries(catVals).sort((a,b)=>b[1]-a[1]);
+  if(catSorted.length>0){
+    const maxVal=catSorted[0][1];
+    h+=`<div class="dash-card">
+      <div class="dash-card-title">Valor por categoría</div>
+      <div class="bar-chart">`;
+    catSorted.forEach(([cat,val],i)=>{
+      const pct=maxVal>0?val/maxVal*100:0;
+      const color=CAT_COLORS[i%CAT_COLORS.length];
+      const shortCat=cat.replace(/[^\w\s]/g,'').trim().substring(0,12);
+      h+=`<div class="bar-row">
+        <div class="bar-lbl">${shortCat}</div>
+        <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${color};"></div></div>
+        <div class="bar-val">${fmtShort(val)}€</div>
+      </div>`;
+    });
+    h+='</div></div>';
+  }
+
+  // ── 6. Evolución snapshots + por producto ──
+  if(hist.length>=2){
+    const recent=hist.slice(0,8);
+    h+=`<div class="dash-card">
+      <div class="dash-card-title">Evolución de inventario <span style="font-size:9px;color:var(--t3)">${hist.length} snapshots</span></div>`;
+    recent.forEach((snap,i)=>{
+      const s=snapExpand(snap);
+      const tv=s.items.reduce((sum,x)=>sum+(x.val||0),0);
+      const nextSnap=recent[i+1];
+      const prevTv=nextSnap?snapExpand(nextSnap).items.reduce((sum,x)=>sum+(x.val||0),0):null;
+      const delta=prevTv!==null?tv-prevTv:null;
+      h+=`<div class="trend-row">
+        <div class="trend-lbl" style="font-size:11px;">${snap.ts}</div>
+        <div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text);margin-right:8px;">${fmtShort(tv)}€</div>
+        ${delta!==null?`<div class="trend-chg ${delta>0?'trend-up':delta<0?'trend-dn':'trend-eq'}">${delta>0?'+':''}${fmtShort(delta)}€</div>`:''}
+      </div>`;
+    });
+    h+='</div>';
+    h+=`<div class="dash-card">
+      <div class="dash-card-title">📈 Evolución por producto</div>
+      <select id="dashProdSel" onchange="renderProdEvol()" style="width:100%;background:var(--s2);border:1px solid var(--border);border-radius:var(--rs);padding:10px;font-size:13px;color:var(--text);margin-bottom:12px;-webkit-appearance:none;">
+        <option value="">— Selecciona un producto —</option>
+        ${prods.map(p=>"<option value=\""+p.id+"\">"+p.n+"</option>").join('')}
+      </select>
+      <div id="dashProdEvolContent"></div>
+    </div>`;
+  }
+
+
+  // ── CALCULADORA DE PEDIDO ──
+  h+=`<div class="dash-card">
+    <div class="dash-card-title">🧮 Calculadora de pedido</div>
+    <div id="smartOrderContent"></div>
+  </div>`;
+
+  // ── RENTABILIDAD POR CONSUMO ──
+  h+=`<div class="dash-card">
+    <div class="dash-card-title">📊 Productos más consumidos</div>
+    <div id="rentabilidadContent"></div>
+  </div>`;
+
+  content.innerHTML=h||'<div class="empty"><div style="font-size:36px;margin-bottom:8px">📊</div><div>Haz el primer inventario para ver el dashboard</div></div>';
+
+  // Render sub-components after DOM is ready
+  const soEl=E('smartOrderContent');
+  const rEl=E('rentabilidadContent');
+  if(soEl)renderSmartOrder(soEl);
+  if(rEl)renderRentabilidad(rEl);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// CALCULADORA DE PEDIDO INTELIGENTE
+// ═══════════════════════════════════════════════════════════════════
+function calcSmartOrder(days=7){
+  if(!hist||hist.length<2)return null;
+  const last=snapExpand(hist[0]),prev=snapExpand(hist[1]);
+  const consumed=[];
+  last.items.forEach(item=>{
+    const prevItem=prev.items.find(x=>x.id===item.id);
+    if(prevItem&&prevItem.qty>item.qty){
+      const c=prevItem.qty-item.qty;
+      const needed=Math.ceil(c/7*days); // extrapolate to requested days
+      const curStock=item.qty;
+      const toOrder=Math.max(0,needed-curStock);
+      if(toOrder>0)consumed.push({id:item.id,name:item.n,unit:item.u,emoji:item.emoji,consumed:c,curStock,needed,toOrder});
+    }
+  });
+  return consumed.sort((a,b)=>b.toOrder-a.toOrder);
+}
+
+function addSmartOrderToCart(days){
+  const suggestions=calcSmartOrder(days);
+  if(!suggestions||suggestions.length===0){toast('No hay suficientes datos','#f97316');return;}
+  let added=0;
+  suggestions.forEach(s=>{
+    if(s.toOrder>0){cart[s.id]=s.toOrder;added++;}
+  });
+  scheduleSave();renderAll();renderCart();
+  toast(`🛒 ${added} productos añadidos al carrito`);
+  showPage('cart');
+}
+
+function renderSmartOrder(container){
+  const suggestions=calcSmartOrder(7);
+  if(!suggestions){
+    container.innerHTML=`<div style="font-size:12px;color:var(--t2);padding:10px 0;">
+      Necesitas al menos 2 snapshots de inventario para activar la calculadora.
+      <span style="color:var(--t3);">Haz el inventario periódicamente y la calculadora irá mejorando sola.</span>
+    </div>`;
+    return;
+  }
+  if(suggestions.length===0){
+    container.innerHTML=`<div style="font-size:12px;color:var(--green);padding:10px 0;">✓ Sin necesidad urgente de pedir según el consumo actual</div>`;
+    return;
+  }
+  const snapDiff=Math.round((new Date(hist[0].ts)-new Date(hist[1].ts||hist[0].ts))/(86400000))||7;
+  let h=`<div style="font-size:10px;color:var(--t3);margin-bottom:10px;">Basado en ${hist.length} snapshot${hist.length>1?'s':''} · Período analizado: ~${snapDiff} días</div>`;
+  suggestions.slice(0,10).forEach(s=>{
+    h+=`<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border);">
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${s.emoji||'📦'} ${s.name}</div>
+        <div style="font-size:10px;color:var(--t2);margin-top:1px;">Stock: ${s.curStock} · Consumo: ${s.consumed}/${s.unit} por período</div>
+      </div>
+      <div style="text-align:right;flex-shrink:0;">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--red);">+${s.toOrder}</div>
+        <div style="font-size:9px;color:var(--t3);">${s.unit}</div>
+      </div>
+    </div>`;
+  });
+  h+=`<div style="display:flex;gap:8px;margin-top:12px;">
+    <button onclick="addSmartOrderToCart(7)" style="flex:1;background:var(--gold);border:none;border-radius:var(--rs);padding:10px;font-size:12px;font-weight:700;color:#111;cursor:pointer;">🛒 Pedir para 7 días</button>
+    <button onclick="addSmartOrderToCart(14)" style="flex:1;background:var(--s2);border:1px solid var(--border);border-radius:var(--rs);padding:10px;font-size:12px;font-weight:700;color:var(--text);cursor:pointer;">14 días</button>
+  </div>`;
+  container.innerHTML=h;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// RENTABILIDAD POR PRODUCTO (vinculada al inventario)
+// ═══════════════════════════════════════════════════════════════════
+function calcRentabilidad(){
+  if(!hist||hist.length<2)return[];
+  const last=snapExpand(hist[0]),prev=snapExpand(hist[1]);
+  const results=[];
+  last.items.forEach(item=>{
+    const prevItem=prev.items.find(x=>x.id===item.id);
+    if(!prevItem||prevItem.qty<=item.qty)return;
+    const consumed=prevItem.qty-item.qty;
+    const coste=consumed*item.p;
+    // Estimate revenue: use avg category margin from DP context
+    // We know from analysis avg margin is ~72% so revenue = coste / (1-0.72)
+    // But better: use sales data if available
+    const p=prods.find(x=>x.id===item.id);
+    results.push({
+      id:item.id,name:item.n,emoji:item.emoji||'📦',
+      cat:item.c,prov:item.p,unit:item.u,
+      consumed,coste:+coste.toFixed(2),
+      precioCoste:item.p
+    });
+  });
+  return results.sort((a,b)=>b.coste-a.coste);
+}
+
+function renderRentabilidad(container){
+  const data=calcRentabilidad();
+  if(!data||data.length===0){
+    container.innerHTML=`<div style="font-size:12px;color:var(--t2);">Necesitas 2+ snapshots para ver rentabilidad de consumos.</div>`;
+    return;
+  }
+  const totalCoste=data.reduce((s,d)=>s+d.coste,0);
+  let h=`<div style="font-size:10px;color:var(--t3);margin-bottom:8px;">Consumo estimado entre los 2 últimos snapshots · Coste total: ${fmt(totalCoste)}</div>`;
+  const maxCoste=data[0].coste;
+  data.slice(0,12).forEach(d=>{
+    const pct=maxCoste>0?d.coste/maxCoste*100:0;
+    const bar=`<div style="height:4px;background:var(--s2);border-radius:2px;margin-top:4px;overflow:hidden;"><div style="width:${pct}%;height:100%;background:var(--orange);border-radius:2px;"></div></div>`;
+    h+=`<div style="padding:7px 0;border-bottom:1px solid var(--border);">
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <div style="font-size:12px;font-weight:600;color:var(--text);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${d.emoji} ${d.name}</div>
+        <div style="text-align:right;flex-shrink:0;margin-left:10px;">
+          <div style="font-family:'DM Mono',monospace;font-size:12px;color:var(--orange);">${fmt(d.coste)}</div>
+          <div style="font-size:9px;color:var(--t3);">${d.consumed} ${d.unit}</div>
+        </div>
+      </div>
+      ${bar}
+    </div>`;
+  });
+  container.innerHTML=h;
+}
+
+function renderProdEvol(){
+  const sel=E('dashProdSel');
+  const content=E('dashProdEvolContent');
+  if(!sel||!content)return;
+  const id=parseInt(sel.value);
+  if(!id){content.innerHTML='';return;}
+  const p=prods.find(x=>x.id===id);if(!p)return;
+  const points=[];
+  hist.forEach(snap=>{
+    const s=snapExpand(snap);
+    const item=s.items.find(x=>x.id===id);
+    if(item!==undefined)points.push({ts:snap.ts,qty:item.qty,val:+(item.qty*p.p).toFixed(2)});
+  });
+  if(points.length===0){
+    content.innerHTML='<div style="font-size:12px;color:var(--t2);text-align:center;padding:16px;">Este producto no aparece en ningún snapshot aún</div>';
+    return;
+  }
+  const chronological=[...points].reverse();
+  const qtys=chronological.map(pt=>pt.qty);
+  const maxQ=Math.max(...qtys);
+  const lastQ=chronological[chronological.length-1].qty;
+  const firstQ=chronological[0].qty;
+  const trend=lastQ-firstQ;
+  let h='<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:12px;">';
+  h+='<div style="background:var(--s2);border-radius:var(--rs);padding:8px;text-align:center;"><div style="font-family:Bebas Neue,sans-serif;font-size:20px;color:var(--gold2);">'+lastQ+'</div><div style="font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--t2);">Actual</div></div>';
+  h+='<div style="background:var(--s2);border-radius:var(--rs);padding:8px;text-align:center;"><div style="font-family:Bebas Neue,sans-serif;font-size:20px;color:var(--text);">'+maxQ+'</div><div style="font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--t2);">Máximo</div></div>';
+  const trendColor=trend<0?'var(--red)':trend>0?'var(--green)':'var(--t2)';
+  h+='<div style="background:var(--s2);border-radius:var(--rs);padding:8px;text-align:center;"><div style="font-family:Bebas Neue,sans-serif;font-size:20px;color:'+trendColor+';">'+(trend>0?'+':'')+trend+'</div><div style="font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--t2);">Tendencia</div></div>';
+  h+='</div>';
+  h+='<div style="font-size:10px;color:var(--t2);margin-bottom:6px;">Unidad: '+p.u+' · Precio: '+fmt(p.p)+'</div>';
+  chronological.forEach(function(pt,i){
+    const prev=i>0?chronological[i-1]:null;
+    const delta=prev!==null?pt.qty-prev.qty:null;
+    const bar=maxQ>0?Math.round(pt.qty/maxQ*100):0;
+    const dColor=delta===null?'var(--t2)':delta<0?'var(--red)':delta>0?'var(--green)':'var(--t2)';
+    const dBg=delta===null?'var(--s2)':delta<0?'rgba(239,68,68,.12)':delta>0?'rgba(34,197,94,.12)':'var(--s2)';
+    h+='<div style="padding:7px 0;border-bottom:1px solid var(--border);">';
+    h+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">';
+    h+='<div style="font-size:11px;color:var(--t2);">'+pt.ts+'</div>';
+    h+='<div style="display:flex;align-items:center;gap:8px;">';
+    if(delta!==null)h+='<span style="font-size:10px;padding:1px 6px;border-radius:4px;font-family:DM Mono,monospace;background:'+dBg+';color:'+dColor+';">'+(delta>0?'+':'')+delta+'</span>';
+    h+='<span style="font-family:Bebas Neue,sans-serif;font-size:18px;color:var(--gold2);">'+pt.qty+'</span>';
+    h+='<span style="font-size:10px;color:var(--t2);">'+p.u+'</span>';
+    h+='</div></div>';
+    h+='<div style="height:4px;background:var(--s2);border-radius:2px;overflow:hidden;"><div style="width:'+bar+'%;height:100%;background:var(--gold);border-radius:2px;"></div></div>';
+    h+='</div>';
+  });
+  content.innerHTML=h;
+}
+
+function exportDashXL(){
+  const wb=XLSX.utils.book_new();
+  const now2=new Date();
+  const rows=[['DASHBOARD LA SEDE · '+now2.toLocaleDateString('es-ES'),'',''],['','','']];
+  const catVals={};
+  prods.forEach(p=>{const v=cnts[p.id];if(v!==undefined&&v>0){if(!catVals[p.c])catVals[p.c]=0;catVals[p.c]+=v*p.p;}});
+  rows.push(['VALOR POR CATEGORÍA','','']);
+  rows.push(['Categoría','Valor (€)','']);
+  Object.entries(catVals).sort((a,b)=>b[1]-a[1]).forEach(([c,v])=>rows.push([c,+v.toFixed(2),'']));
+  rows.push(['','','']);
+  if(sales&&sales.length>0){
+    rows.push(['HISTORIAL VENTAS Y FOOD COST','','']);
+    rows.push(['Fecha','Ventas (€)','Food Cost aprox.']);
+    sales.forEach(s=>{
+      const cv=prods.reduce((t,p)=>{const v=cnts[p.id];return t+(v!==undefined?v*p.p:0);},0);
+      rows.push([s.ts+' ('+s.period+')',s.total,s.total>0?(cv/s.total*100).toFixed(1)+'%':'—']);
+    });
+  }
+  const ws=XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols']=[{wch:30},{wch:14},{wch:14}];
+  XLSX.utils.book_append_sheet(wb,ws,'Dashboard');
+  XLSX.writeFile(wb,`dashboard_lasede_${now2.toISOString().slice(0,10)}.xlsx`);
+  toast('📊 Dashboard exportado');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// WHATSAPP EXPORT
+// ═══════════════════════════════════════════════════════════════════
+function exportCartWA(){
+  if(Object.keys(cart).length===0){toast('El carrito está vacío','#ef4444');return;}
+  const byProv={};
+  Object.entries(cart).forEach(([idStr,qty])=>{
+    const id=parseInt(idStr);const p=prods.find(x=>x.id===id);if(!p)return;
+    if(!byProv[p.v])byProv[p.v]=[];byProv[p.v].push({p,qty});
+  });
+  const now2=new Date();
+  let text=`🏪 *PEDIDO LA SEDE*
+📅 ${now2.toLocaleDateString('es-ES')}
+
+`;
+  let totalGlobal=0;
+  Object.entries(byProv).sort().forEach(([prov,items])=>{
+    let provTotal=0;
+    text+=`📦 *${prov}*
+`;
+    items.forEach(({p,qty})=>{
+      const lt=p.p*qty;provTotal+=lt;totalGlobal+=lt;
+      text+=`  • ${p.n}: *${qty} ${p.u}*
+`;
+    });
+    text+=`  💰 Subtotal: ${fmt(provTotal)}
+
+`;
+  });
+  text+=`───────────────
+💰 *TOTAL: ${fmt(totalGlobal)}*`;
+  // Copy to clipboard
+  if(navigator.clipboard){
+    navigator.clipboard.writeText(text).then(()=>{
+      toast('💬 Pedido copiado — pega en WhatsApp');
+    }).catch(()=>fallbackCopy(text));
+  } else fallbackCopy(text);
+}
+
+function fallbackCopy(text){
+  const ta=document.createElement('textarea');
+  ta.value=text;ta.style.position='fixed';ta.style.opacity='0';
+  document.body.appendChild(ta);ta.focus();ta.select();
+  try{document.execCommand('copy');toast('💬 Pedido copiado — pega en WhatsApp');}
+  catch(e){toast('No se pudo copiar — prueba en Chrome','#ef4444');}
+  document.body.removeChild(ta);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// UPDATE showPage to render dash
+// ═══════════════════════════════════════════════════════════════════
+// ── KEYBOARD ─────────────────────────────────────────────────────
+// ── CATEGORY ORDER ────────────────────────────────────────────────
+function openOrderMo(){renderOrderList();E('moOrder').classList.add('open');}
+function closeMoOrder(e){if(!e||e.target===E('moOrder'))E('moOrder').classList.remove('open');}
+function resetCatOrder(){catOrder=[];scheduleSave();renderOrderList();renderAll();toast('Orden restablecido');}
+function renderOrderList(){
+  const cats=getEffectiveCO();
+  const items=cats.map(function(c,i){
+    const up=i>0?'<div class="order-btn" onclick="moveCat('+i+',-1)">↑</div>':'<div style="width:30px;"></div>';
+    const dn=i<cats.length-1?'<div class="order-btn" onclick="moveCat('+i+',1)">↓</div>':'<div style="width:30px;"></div>';
+    return '<div class="order-item"><div class="order-item-name">'+c+'</div>'+up+dn+'</div>';
+  });
+  E('orderList').innerHTML=items.join('');
+}
+function moveCat(idx,dir){
+  const cats=getEffectiveCO();const ni=idx+dir;
+  if(ni<0||ni>=cats.length)return;
+  const tmp=cats[idx];cats[idx]=cats[ni];cats[ni]=tmp;
+  catOrder=[...cats];scheduleSave();renderOrderList();renderAll();
+}
+
+E('mqIn').addEventListener('keydown',e=>{if(e.key==='Enter')confirmQty();if(e.key==='Escape')closeMoQ();});
+E('cqIn')?.addEventListener('keydown',e=>{if(e.key==='Enter')confirmCQ();if(e.key==='Escape')closeMoCQ();});
+E('moName').addEventListener('keydown',e=>{if(e.key==='Enter')saveProduct();});
+E('moCat').addEventListener('change',function(){
+  if(this.value==='__new__'){
+    const n=prompt('Nombre de la nueva categoría:');
+    if(n?.trim()){
+      const name=n.trim();
+      if(!customCats.includes(name))customCats.push(name);
+      populateCatSelect();this.value=name;scheduleSave();
+    } else this.value=E('moCat').options[0]?.value||CO[0];
+  }
+});
+E('moProv').addEventListener('change',function(){
+  if(this.value==='__newprov__'){
+    const n=prompt('Nombre del nuevo proveedor:');
+    if(n?.trim()){
+      const name=n.trim().toUpperCase();
+      if(!customProvs.includes(name))customProvs.push(name);
+      // Add to this select
+      const existing=[...this.options].map(o=>o.value);
+      if(!existing.includes(name)){
+        const o=document.createElement('option');o.value=name;o.textContent=name;
+        this.insertBefore(o,this.lastElementChild);
+      }
+      this.value=name;refreshProvFilter();scheduleSave();
+    } else this.value='LACUNZA';
+  }
+});
+
+init();
+</script>
+</body>
+</html>
