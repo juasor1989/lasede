@@ -342,7 +342,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;dis
 <div class="page active" id="page-inv">
   <div class="hdr">
     <div class="hdr-top">
-      <div class="brand"><div class="bname">La Sede</div><div class="bsub">Inventario · v18.1</div></div>
+      <div class="brand"><div class="bname">La Sede</div><div class="bsub">Inventario · v18.2</div></div>
       <div class="hactions">
         <button class="btn" onclick="openOrderMo()">↕️</button>
         <button class="btn" onclick="openAddMo()">＋</button>
@@ -706,32 +706,23 @@ async function cloudLoad(){
     // Read cnts, cart carefully — only update if data exists
     if(data.cnts)cnts=JSON.parse(data.cnts);
     if(data.cart)cart=JSON.parse(data.cart);
-    // Load hist from both cells and merge
+    // hist is returned already reassembled by the Apps Script
     const toSort=ts=>{try{const p=ts.replace(',','').split(' ');const[d,m,y]=p[0].split('/');return y+'-'+m+'-'+d+' '+(p[1]||'00:00');}catch(e){return ts;}};
-    {
-      const h1=data.hist?JSON.parse(data.hist):[];
-      const h2=data.hist2?JSON.parse(data.hist2):[];
-      const merged=[...hist,...h1,...h2];
-      const seen=new Set();
-      hist=merged.filter(s=>{
-        if(!s||!s.ts)return false;
-        if(seen.has(s.ts))return false;
-        seen.add(s.ts);return true;
-      }).sort((a,b)=>toSort(b.ts).localeCompare(toSort(a.ts))).slice(0,50);
+    if(data.hist){
+      try{
+        const loaded=JSON.parse(data.hist);
+        const merged=[...hist,...loaded];
+        const seen=new Set();
+        hist=merged.filter(s=>{
+          if(!s||!s.ts)return false;
+          if(seen.has(s.ts))return false;
+          seen.add(s.ts);return true;
+        }).sort((a,b)=>toSort(b.ts).localeCompare(toSort(a.ts))).slice(0,50);
+      }catch(e2){}
     }
     if(data.sales)sales=JSON.parse(data.sales);
-    // Load orderHistory from both cells
-    {
-      const oh1=data.orderHistory?JSON.parse(data.orderHistory):[];
-      const oh2=data.orderHistory2?JSON.parse(data.orderHistory2):[];
-      const merged=[...oh1,...oh2];
-      // Dedup by ts
-      const seen=new Set();
-      orderHistory=merged.filter(o=>{
-        if(!o||!o.ts)return false;
-        if(seen.has(o.ts))return false;
-        seen.add(o.ts);return true;
-      }).slice(0,30);
+    if(data.orderHistory){
+      try{orderHistory=JSON.parse(data.orderHistory);}catch(e2){}
     }
     if(data.edits){
       try{applyEdits(JSON.parse(data.edits));}catch(e2){console.warn('edits',e2);}
@@ -751,13 +742,11 @@ async function cloudLoad(){
     const ls2=localStorage.getItem('s8sales');
     if(lc)try{cnts=JSON.parse(lc);}catch(e2){}
     if(la)try{cart=JSON.parse(la);}catch(e2){}
-    const lh2=localStorage.getItem('s8hist2');
-    if(lh)try{const h1=JSON.parse(lh);const h2=lh2?JSON.parse(lh2):[];hist=[...h1,...h2];}catch(e2){}
+    if(lh)try{hist=JSON.parse(lh);}catch(e2){}
     if(le)try{const _e=JSON.parse(le);if(_e&&typeof _e==='object')applyEdits(_e);}catch(e2){}
     const lo=localStorage.getItem('s8orderhist');
     if(ls2)try{sales=JSON.parse(ls2);}catch(e2){}
-    const lo2=localStorage.getItem('s8orderhist2');
-    if(lo)try{const o1=JSON.parse(lo);const o2=lo2?JSON.parse(lo2):[];orderHistory=[...o1,...o2];}catch(e2){}
+    if(lo)try{orderHistory=JSON.parse(lo);}catch(e2){}
     showSync('⚠ Sin conexión — datos locales','#f97316');setTimeout(hideSync,3000);
   }
   populateCatSelect();refreshProvFilter();
@@ -809,12 +798,10 @@ function localBackup(){
   try{
     localStorage.setItem('s8c',JSON.stringify(cnts));
     localStorage.setItem('s8cart',JSON.stringify(cart));
-    localStorage.setItem('s8hist',JSON.stringify(hist.slice(0,25)));
-    localStorage.setItem('s8hist2',JSON.stringify(hist.slice(25,50)));
+    localStorage.setItem('s8hist',JSON.stringify(hist));
     localStorage.setItem('s8edits',JSON.stringify(getEdits()));
     localStorage.setItem('s8sales',JSON.stringify(sales||[]));
-    localStorage.setItem('s8orderhist',JSON.stringify((orderHistory||[]).slice(0,15)));
-    localStorage.setItem('s8orderhist2',JSON.stringify((orderHistory||[]).slice(15,30)));
+    localStorage.setItem('s8orderhist',JSON.stringify(orderHistory||[]));
   }catch(e){}
 }
 
@@ -829,20 +816,14 @@ async function cloudSave(){
   syncing=true;showSync('☁ Guardando...','#d4a843');
   try{
     // Split hist across 2 cells to avoid Google Sheets 50k char limit
-    const hist1=hist.slice(0,25);
-    const hist2=hist.slice(25,50);
-    // Split orderHistory similarly
-    const oh1=(orderHistory||[]).slice(0,15);
-    const oh2=(orderHistory||[]).slice(15,30);
+    // Apps Script handles chunking automatically for large fields
     const payload={
       cnts:JSON.stringify(cnts),
       cart:JSON.stringify(cart),
-      hist:JSON.stringify(hist1),
-      hist2:JSON.stringify(hist2),
+      hist:JSON.stringify(hist),
       edits:JSON.stringify(getEdits()),
       sales:JSON.stringify(sales||[]),
-      orderHistory:JSON.stringify(oh1),
-      orderHistory2:JSON.stringify(oh2),
+      orderHistory:JSON.stringify(orderHistory||[])
     };
     const r=await fetch(GS_URL,{method:'POST',body:JSON.stringify(payload),headers:{'Content-Type':'text/plain'},mode:'cors'});
     const res=await r.json();
