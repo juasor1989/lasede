@@ -245,6 +245,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;dis
 .oh-prov{font-family:'Bebas Neue',sans-serif;font-size:13px;letter-spacing:1px;color:var(--gold);}
 .oh-status{font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;}
 .oh-complete{background:rgba(34,197,94,.15);color:var(--green);}
+.oh-historic{background:rgba(212,168,67,.15);color:var(--gold2);}
 .oh-partial{background:rgba(251,191,36,.12);color:#fbbf24;}
 .oh-item{display:flex;align-items:center;justify-content:space-between;padding:8px 14px;border-bottom:1px solid rgba(42,42,58,.5);font-size:12px;}
 .oh-item:last-child{border-bottom:none;}
@@ -342,7 +343,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;dis
 <div class="page active" id="page-inv">
   <div class="hdr">
     <div class="hdr-top">
-      <div class="brand"><div class="bname">La Sede</div><div class="bsub">Inventario · v18.2</div></div>
+      <div class="brand"><div class="bname">La Sede</div><div class="bsub">Inventario · v18.3</div></div>
       <div class="hactions">
         <button class="btn" onclick="openOrderMo()">↕️</button>
         <button class="btn" onclick="openAddMo()">＋</button>
@@ -407,6 +408,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;dis
       <div class="brand"><div class="bname">Pedido</div><div class="bsub" id="cartModeSubtitle">Carrito de compra</div></div>
       <div class="hactions">
         <button class="btn green" onclick="startReception()" id="btnStartRecv" style="display:none;">📥 Recibir</button>
+        <button class="btn" onclick="openHistoricOrderMo()" id="btnHistoric" style="display:none;">📋 Histórico</button>
         <button class="btn red" onclick="clearCart()">🗑 Vaciar</button>
         <button class="btn gold" onclick="exportCartXL()">📊</button>
       </div>
@@ -644,6 +646,32 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;dis
       <button class="mo-btn ca" onclick="closeMoP()">Cancelar</button>
       <button class="mo-btn danger" id="moDelBtn" onclick="deleteProduct()" style="display:none">Eliminar</button>
       <button class="mo-btn co" onclick="saveProduct()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL PEDIDO HISTÓRICO -->
+<div class="mo" id="moHistoric" onclick="closeMoHistoric(event)">
+  <div class="md">
+    <div class="mo-title">📋 Registrar pedido histórico</div>
+    <div style="font-size:12px;color:var(--t2);margin-bottom:14px;line-height:1.6;">
+      Este pedido se guardará en el historial con la fecha que indiques, pero <strong style="color:var(--gold2)">no modificará el inventario actual</strong> ya que fue recibido anteriormente.
+    </div>
+    <div class="mo-field">
+      <label class="mo-label">Fecha en que se recibió el pedido</label>
+      <input class="mo-input" id="historicDate" type="date">
+    </div>
+    <div class="mo-field">
+      <label class="mo-label">Nota (opcional)</label>
+      <input class="mo-input" id="historicNote" placeholder="Ej: Pedido semanal, pedido extraordinario...">
+    </div>
+    <div style="background:var(--s2);border-radius:var(--rs);padding:10px 12px;margin-bottom:4px;">
+      <div style="font-size:11px;color:var(--t2);margin-bottom:4px;">Productos en el carrito:</div>
+      <div id="historicSummary" style="font-size:12px;color:var(--text);"></div>
+    </div>
+    <div class="mo-btns">
+      <button class="mo-btn ca" onclick="closeMoHistoric()">Cancelar</button>
+      <button class="mo-btn co" onclick="confirmHistoricOrder()">Guardar en historial</button>
     </div>
   </div>
 </div>
@@ -1204,7 +1232,9 @@ function renderCartNormal(){
   const cartCount=Object.keys(cart).length;
   // Toggle recv button visibility
   const btnRecv=E('btnStartRecv');
+  const btnHist=E('btnHistoric');
   if(btnRecv)btnRecv.style.display=cartCount>0?'flex':'none';
+  if(btnHist)btnHist.style.display=cartCount>0?'flex':'none';
 
   // No early return — always render full page including order history
 
@@ -1264,8 +1294,8 @@ function renderCartNormal(){
         <div style="font-size:10px;color:var(--t3);">${orderHistory.length} pedido${orderHistory.length>1?'s':''}</div>
       </div>`;
     orderHistory.forEach((order,idx)=>{
-      const statusCls=order.hasDiscrepancy?'oh-partial':'oh-complete';
-      const statusTxt=order.hasDiscrepancy?'⚠ Con incidencias':'✓ Completo';
+      const statusCls=order.historic?'oh-historic':order.hasDiscrepancy?'oh-partial':'oh-complete';
+      const statusTxt=order.historic?'📋 Histórico':order.hasDiscrepancy?'⚠ Con incidencias':'✓ Completo';
       const totItems=order.items.length;
       const totDisc=order.items.reduce((s,i)=>s+Math.abs(i.received-i.ordered),0);
       const domId=`oh_detail_${idx}`;
@@ -2391,6 +2421,86 @@ function exportDashXL(){
 // ═══════════════════════════════════════════════════════════════════
 // WHATSAPP EXPORT
 // ═══════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════
+// PEDIDO HISTÓRICO — registra en historial sin tocar inventario
+// ═══════════════════════════════════════════════════════════════════
+function openHistoricOrderMo(){
+  if(Object.keys(cart).length===0){toast('El carrito está vacío','#ef4444');return;}
+  // Default date: today
+  E('historicDate').value=todayStr();
+  E('historicNote').value='';
+  // Build summary
+  const byProv={};
+  Object.entries(cart).forEach(([idStr,qty])=>{
+    const id=parseInt(idStr);const p=prods.find(x=>x.id===id);if(!p)return;
+    if(!byProv[p.v])byProv[p.v]=[];
+    byProv[p.v].push({p,qty});
+  });
+  let summary='';
+  Object.entries(byProv).sort().forEach(([prov,items])=>{
+    summary+=`<div style="font-weight:700;color:var(--gold2);margin-top:4px;">${prov}</div>`;
+    items.forEach(({p,qty})=>{
+      summary+=`<div style="color:var(--t2);padding-left:8px;">· ${p.n}: ${qty} ${p.u}</div>`;
+    });
+  });
+  E('historicSummary').innerHTML=summary;
+  E('moHistoric').classList.add('open');
+}
+
+function closeMoHistoric(e){if(!e||e.target===E('moHistoric'))E('moHistoric').classList.remove('open');}
+
+function confirmHistoricOrder(){
+  const date=E('historicDate').value;
+  if(!date){toast('Introduce la fecha del pedido','#ef4444');return;}
+  const note=E('historicNote').value.trim();
+
+  // Build the order history entry with the custom date
+  const provSet=new Set();
+  const items=[];
+  let valueReceived=0;
+
+  Object.entries(cart).forEach(([idStr,qty])=>{
+    const id=parseInt(idStr);
+    const p=prods.find(x=>x.id===id);if(!p)return;
+    provSet.add(p.v);
+    valueReceived+=p.p*qty;
+    items.push({
+      id,name:p.n,emoji:p.e,unit:p.u,prov:p.v,
+      ordered:qty,received:qty,disc:0,price:p.p
+    });
+  });
+
+  // Use the user-provided date as timestamp
+  const[y,m,d]=date.split('-');
+  const ts=`${d}/${m}/${y}, 00:00`;
+  const label=note||`Pedido ${d}/${m}/${y}`;
+
+  const entry={
+    ts,
+    label,
+    note,
+    historic:true,  // flag to identify historic entries
+    provs:[...provSet].sort(),
+    items,
+    hasDiscrepancy:false,
+    valueReceived:+valueReceived.toFixed(2)
+  };
+
+  if(!orderHistory)orderHistory=[];
+  orderHistory.unshift(entry);
+  // Sort by date after inserting
+  const toSort=ts=>{try{const p=ts.replace(',','').split(' ');const[d,m,y]=p[0].split('/');return y+'-'+m+'-'+d+' '+(p[1]||'00:00');}catch(e){return ts;}};
+  orderHistory.sort((a,b)=>toSort(b.ts).localeCompare(toSort(a.ts)));
+  if(orderHistory.length>30)orderHistory=orderHistory.slice(0,30);
+
+  // Clear cart
+  cart={};
+  E('moHistoric').classList.remove('open');
+  scheduleSave();
+  renderAll();renderCart();
+  toast('📋 Pedido histórico guardado · inventario sin cambios','#22c55e');
+}
+
 function exportCartWA(){
   if(Object.keys(cart).length===0){toast('El carrito está vacío','#ef4444');return;}
   const byProv={};
