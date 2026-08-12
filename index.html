@@ -409,6 +409,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;dis
       <div class="hactions">
         <button class="btn green" onclick="startReception()" id="btnStartRecv" style="display:none;">📥 Recibir</button>
         <button class="btn" onclick="openHistoricOrderMo()" id="btnHistoric" style="display:none;">📋 Histórico</button>
+        <button class="btn" onclick="openProvidersMo()" title="Teléfonos de proveedores">📞</button>
         <button class="btn red" onclick="clearCart()">🗑 Vaciar</button>
         <button class="btn gold" onclick="exportCartXL()">📊</button>
       </div>
@@ -709,6 +710,21 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;dis
   </div>
 </div>
 
+<!-- MODAL PROVEEDORES (teléfonos WhatsApp) -->
+<div class="mo" id="moProviders" onclick="closeMoProviders(event)">
+  <div class="md">
+    <div class="mo-title">📞 Proveedores · WhatsApp</div>
+    <div style="font-size:12px;color:var(--t2);margin-bottom:14px;line-height:1.6;">
+      Añade el número de WhatsApp de cada proveedor (con prefijo de país, ej: +34600111222) para poder enviarles el pedido con un solo toque desde el Carrito.
+    </div>
+    <div id="providersList"></div>
+    <div class="mo-btns">
+      <button class="mo-btn ca" onclick="closeMoProviders()">Cerrar</button>
+      <button class="mo-btn co" onclick="saveProviderPhones()">Guardar</button>
+    </div>
+  </div>
+</div>
+
 <div id="syncBadge"></div>
 <div class="toast" id="toast"></div>
 
@@ -799,6 +815,7 @@ function getEdits(){
   if(customProvs&&customProvs.length)edits['__custprovs__']=customProvs;
   if(customCats&&customCats.length)edits['__custcats__']=customCats;
   if(catOrder&&catOrder.length)edits['__catorder__']=catOrder;
+  if(provPhones&&Object.keys(provPhones).length)edits['__provphones__']=provPhones;
   return edits;
 }
 
@@ -809,6 +826,7 @@ function applyEdits(edits){
   if(Array.isArray(edits['__custprovs__']))customProvs=edits['__custprovs__'];
   if(Array.isArray(edits['__custcats__']))customCats=edits['__custcats__'];
   if(Array.isArray(edits['__catorder__']))catOrder=edits['__catorder__'];
+  if(edits['__provphones__']&&typeof edits['__provphones__']==='object')provPhones=edits['__provphones__'];
   // Apply product edits — skip meta keys and validate each entry
   Object.entries(edits).forEach(([k,saved])=>{
     if(k.startsWith('__'))return; // skip meta keys
@@ -980,7 +998,7 @@ const CO=['🛢️ Barriles','🍺 Cervezas','🥤 Refrescos','💧 Aguas','🍷
 const PROVS=['LACUNZA','DISCON','EXBEL','LESAGA','EGAPAN','SADAR','VARIOS'];
 
 let prods=[],cnts={},cart={},hist=[],acat='Todos',editId=null,qtyId=null;
-let deletedBaseIds=[],customProvs=[],customCats=[],catOrder=[];
+let deletedBaseIds=[],customProvs=[],customCats=[],catOrder=[],provPhones={};
 
 // ── HELPERS ──────────────────────────────────────────────────────
 function E(id){return document.getElementById(id);}
@@ -1008,7 +1026,7 @@ function showPage(id){
 
 // ── INIT ─────────────────────────────────────────────────────────
 function init(){
-  deletedBaseIds=[];customProvs=[];customCats=[];catOrder=[];
+  deletedBaseIds=[];customProvs=[];customCats=[];catOrder=[];provPhones={};
   prods=JSON.parse(JSON.stringify(DP));
   sales=[];orderHistory=[];
   // Show catalog immediately so screen is never blank
@@ -1258,7 +1276,10 @@ function renderCartNormal(){
     h+=`<div class="cart-section">
       <div class="cart-prov-hdr">
         <div class="cart-prov-name">📦 ${prov}</div>
-        <div class="cart-prov-total">${fmt(provTotal)}</div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div class="cart-prov-total">${fmt(provTotal)}</div>
+          <div class="cart-btn" style="background:rgba(37,211,102,.15);border-color:rgba(37,211,102,.3);color:#25d366;width:28px;height:28px;" onclick="sendProvWA('${prov.replace(/'/g,"\\'")}')" title="Enviar pedido por WhatsApp">💬</div>
+        </div>
       </div>`;
     items.forEach(({p,qty})=>{
       const lineTotal=p.p*qty;
@@ -2535,6 +2556,64 @@ function exportCartWA(){
       toast('💬 Pedido copiado — pega en WhatsApp');
     }).catch(()=>fallbackCopy(text));
   } else fallbackCopy(text);
+}
+
+function buildProvOrderText(prov,items){
+  const now2=new Date();
+  let total=0;
+  let text=`🏪 *PEDIDO LA SEDE*
+📅 ${now2.toLocaleDateString('es-ES')}
+
+📦 *${prov}*
+`;
+  items.forEach(({p,qty})=>{
+    const lt=p.p*qty;total+=lt;
+    text+=`  • ${p.n}: *${qty} ${p.u}*
+`;
+  });
+  text+=`
+💰 *TOTAL: ${fmt(total)}*`;
+  return text;
+}
+
+function sendProvWA(prov){
+  const items=[];
+  Object.entries(cart).forEach(([idStr,qty])=>{
+    const id=parseInt(idStr);const p=prods.find(x=>x.id===id);
+    if(p&&p.v===prov)items.push({p,qty});
+  });
+  if(!items.length){toast('No hay productos de '+prov+' en el carrito','#ef4444');return;}
+  const phoneRaw=(provPhones[prov]||'').trim();
+  const text=buildProvOrderText(prov,items);
+  if(!phoneRaw){
+    toast('📞 Añade el WhatsApp de '+prov+' primero','#f97316');
+    openProvidersMo();
+    return;
+  }
+  const phone=phoneRaw.replace(/[^\d]/g,'');
+  const url='https://wa.me/'+phone+'?text='+encodeURIComponent(text);
+  window.open(url,'_blank');
+}
+
+function openProvidersMo(){renderProvidersList();E('moProviders').classList.add('open');}
+function closeMoProviders(e){if(!e||e.target===E('moProviders'))E('moProviders').classList.remove('open');}
+function renderProvidersList(){
+  const all=[...new Set([...PROVS,...customProvs])];
+  E('providersList').innerHTML=all.map(prov=>`
+    <div class="mo-field">
+      <label class="mo-label">${prov}</label>
+      <input class="mo-input" data-prov="${prov.replace(/"/g,'&quot;')}" type="tel" placeholder="+34600111222" value="${(provPhones[prov]||'').replace(/"/g,'&quot;')}">
+    </div>`).join('');
+}
+function saveProviderPhones(){
+  document.querySelectorAll('#providersList input[data-prov]').forEach(inp=>{
+    const v=inp.value.trim();
+    if(v)provPhones[inp.dataset.prov]=v;
+    else delete provPhones[inp.dataset.prov];
+  });
+  scheduleSave();
+  E('moProviders').classList.remove('open');
+  toast('📞 Teléfonos guardados','#22c55e');
 }
 
 function fallbackCopy(text){
