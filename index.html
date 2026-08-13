@@ -605,7 +605,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;dis
     </div>
     <div class="mo-row">
       <div class="mo-field">
-        <label class="mo-label">Unidad de conteo <span style="color:var(--t3);font-weight:400;">(la unidad suelta: lata, botella...)</span></label>
+        <label class="mo-label">Unidad de conteo</label>
         <select class="mo-select" id="moUnit">
           <option value="botellas">Botellas</option>
           <option value="botellines">Botellines</option>
@@ -651,7 +651,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;dis
       <input class="mo-input" id="moFmt" placeholder="Ej: 1 botella 75cl · precio directo de factura">
     </div>
     <div class="mo-fmt" style="color:var(--gold2);background:rgba(212,168,67,.08);">
-      📦 Opcional: si este producto también se pide o cuenta por caja, introduce el precio de la caja (el de factura) y cuántas unidades sueltas trae — el "Precio/unidad" de arriba se calculará solo. Importante: para esto, "Unidad de conteo" debe ser la unidad suelta (ej. latas, botellas), no "Cajas".
+      📦 Opcional: si este producto también se pide o cuenta por caja, introduce el precio de la caja (el de factura) y cuántas unidades trae — el "Precio/unidad" de arriba se calculará solo.
     </div>
     <div class="mo-row">
       <div class="mo-field">
@@ -1039,9 +1039,6 @@ let deletedBaseIds=[],customProvs=[],customCats=[],catOrder=[],provPhones={};
 function E(id){return document.getElementById(id);}
 function fmt(n){return n.toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2})+' €';}
 function fmtShort(n){return n.toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2});}
-// El modo caja solo tiene sentido si la unidad de conteo es la unidad suelta (no "Cajas..."),
-// para evitar contar "cajas de cajas" en productos mal configurados.
-function boxModeActive(p){return !!(p&&p.bx>0&&!/^cajas/i.test(p.u||''));}
 function now(){return new Date().toLocaleString('es-ES',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});}
 
 function toast(msg,color){
@@ -1161,7 +1158,7 @@ function renderProds(){
           <div class="pname">${p.n}</div>
           <div class="pmeta">
             <span class="tag tp">${fmt(p.p)}/${p.u}</span>
-            ${boxModeActive(p)?`<span class="tag tp" title="Precio por caja">${fmt(p.pb)}/${p.bu||'caja'}</span>`:''}
+            ${p.bx>0?`<span class="tag tp" title="Precio por caja">${fmt(p.pb)}/${p.bu||'caja'}</span>`:''}
             <span class="tag tv">${p.v}</span>
             ${lo?'<span class="tag tl">⚠ BAJO</span>':''}
             ${inCart?`<span class="tag tc">🛒 ${cart[p.id]}</span>`:''}
@@ -1236,7 +1233,7 @@ function setQtyMode(which,mode){
   if(lbl)lbl.textContent=(which==='mq'?'Cantidad':'Cantidad a pedir')+(mode==='b'?' (en cajas)':' (en unidades)');
   const hint=E('mqBoxHint');
   if(which==='mq'&&hint){
-    if(mode==='b'&&boxModeActive(p)){hint.style.display='block';hint.textContent='1 caja = '+p.bx+' '+p.u;}
+    if(mode==='b'&&p.bx>0){hint.style.display='block';hint.textContent='1 caja = '+p.bx+' '+p.u;}
     else hint.style.display='none';
   }
 }
@@ -1246,7 +1243,7 @@ function openQty(id){
   E('mqFmt').textContent='📦 '+p.f;
   E('mqIn').value=cnts[id]??'';
   const toggle=E('mqUnitToggleWrap');
-  if(boxModeActive(p)){toggle.style.display='block';}else{toggle.style.display='none';}
+  if(p.bx>0){toggle.style.display='block';}else{toggle.style.display='none';}
   setQtyMode('mq','u');
   E('moQty').classList.add('open');
   setTimeout(()=>E('mqIn').focus(),200);
@@ -1257,7 +1254,7 @@ function confirmQty(){
   if(raw===''&&qtyId!==null){delete cnts[qtyId];scheduleSave();renderAll();closeMoQ();return;}
   const val=parseFloat(raw);
   const p=prods.find(x=>x.id===qtyId);
-  const factor=(qtyModes.mq==='b'&&boxModeActive(p))?p.bx:1;
+  const factor=(qtyModes.mq==='b'&&p&&p.bx>0)?p.bx:1;
   if(!isNaN(val)&&val>=0&&qtyId!==null){cnts[qtyId]=+(val*factor).toFixed(1);scheduleSave();renderAll();toast('✓ Cantidad guardada');}
   closeMoQ();
 }
@@ -1275,13 +1272,13 @@ function toggleCart(id){
 function openCartQtyMo(id){
   const p=prods.find(x=>x.id===id);if(!p)return;
   E('cqName').textContent=p.n;
-  E('cqMeta').textContent=p.u+' · '+fmt(p.p)+'/'+p.u+' · '+p.v+(boxModeActive(p)?' · '+fmt(p.pb)+'/'+(p.bu||'caja'):'');
+  E('cqMeta').textContent=p.u+' · '+fmt(p.p)+'/'+p.u+' · '+p.v+(p.bx>0?' · '+fmt(p.pb)+'/'+(p.bu||'caja'):'');
   E('cqIn').value='';
   const suggested=Math.max(1,(p.m||1)-(cnts[id]||0));
   E('cqPlaceholder').textContent=suggested+' '+p.u;
   E('moCQ').dataset.pid=id;
   const toggle=E('cqUnitToggleWrap');
-  if(boxModeActive(p)){toggle.style.display='block';}else{toggle.style.display='none';}
+  if(p.bx>0){toggle.style.display='block';}else{toggle.style.display='none';}
   E('moCQ').classList.add('open');
   setQtyMode('cq','u');
   setTimeout(()=>E('cqIn').focus(),200);
@@ -1292,7 +1289,7 @@ function confirmCQ(){
   const val=parseInt(E('cqIn').value);
   const p=prods.find(x=>x.id===id);if(!p)return;
   if(isNaN(val)||val<=0){toast('Introduce una cantidad válida','#ef4444');return;}
-  const factor=(qtyModes.cq==='b'&&boxModeActive(p))?p.bx:1;
+  const factor=(qtyModes.cq==='b'&&p.bx>0)?p.bx:1;
   cart[id]=val*factor;
   E('moCQ').classList.remove('open');
   scheduleSave();renderAll();
@@ -1357,7 +1354,7 @@ function renderCartNormal(){
           <div class="ci-name">${p.n}</div>
           <div class="ci-meta">
             <span>${fmt(p.p)}/${p.u}</span>
-            ${boxModeActive(p)?`<span>· ≈${(qty/p.bx).toFixed(1)} ${p.bu||'cajas'}</span>`:''}
+            ${p.bx>0?`<span>· ≈${(qty/p.bx).toFixed(1)} ${p.bu||'cajas'}</span>`:''}
             <span>·</span>
             <span style="color:var(--t3)">Stock actual: ${curStock}</span>
             <span>·</span>
@@ -1938,11 +1935,6 @@ function saveProduct(){
   const bx=parseInt(E('moBoxQty').value)||0;
   const pb=bx>0?(parseFloat(E('moBoxPrice').value)||0):0;
   const bu='cajas';
-
-  if(bx>0&&/^cajas/i.test(unit)){
-    toast('⚠ Si rellenas "Unidades por caja", la Unidad de conteo debe ser la unidad suelta (ej. latas, botellas) — no "Cajas". Cámbiala y vuelve a guardar.','#f97316');
-    return;
-  }
 
   if(editId!==null){
     const idx=prods.findIndex(x=>x.id===editId);
