@@ -651,7 +651,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;dis
       <input class="mo-input" id="moFmt" placeholder="Ej: 1 botella 75cl · precio directo de factura">
     </div>
     <div class="mo-fmt" style="color:var(--gold2);background:rgba(212,168,67,.08);">
-      📦 Opcional: si este producto también se pide o cuenta por caja, indica cuántas unidades trae la caja. El precio de caja se calcula solo, pero puedes escribirlo a mano si en la factura viene distinto.
+      📦 Opcional: si este producto también se pide o cuenta por caja, introduce el precio de la caja (el de factura) y cuántas unidades trae — el "Precio/unidad" de arriba se calculará solo.
     </div>
     <div class="mo-row">
       <div class="mo-field">
@@ -2827,16 +2827,20 @@ function moveCat(idx,dir){
 E('mqIn').addEventListener('keydown',e=>{if(e.key==='Enter')confirmQty();if(e.key==='Escape')closeMoQ();});
 E('cqIn')?.addEventListener('keydown',e=>{if(e.key==='Enter')confirmCQ();if(e.key==='Escape')closeMoCQ();});
 E('moName').addEventListener('keydown',e=>{if(e.key==='Enter')saveProduct();});
-E('moBoxQty').addEventListener('input',function(){
-  const bx=parseFloat(this.value)||0;
-  const price=parseFloat(E('moPrice').value)||0;
-  if(bx>0&&price>0&&!E('moBoxPrice').value)E('moBoxPrice').value=(bx*price).toFixed(2);
-});
-E('moBoxPrice').addEventListener('input',function(){
-  const pb=parseFloat(this.value)||0;
+function recalcBoxPricing(source){
   const bx=parseFloat(E('moBoxQty').value)||0;
-  if(pb>0&&bx>0&&!E('moPrice').value)E('moPrice').value=(pb/bx).toFixed(2);
-});
+  const pb=parseFloat(E('moBoxPrice').value)||0;
+  if(bx>0&&pb>0){
+    // Precio/caja + unidades por caja son la fuente de verdad: recalcula siempre el precio/unidad
+    E('moPrice').value=(pb/bx).toFixed(2);
+  } else if(source==='bx'&&bx>0&&!pb){
+    // Si aún no hay precio de caja, ayuda a rellenarlo a partir del precio/unidad ya conocido
+    const price=parseFloat(E('moPrice').value)||0;
+    if(price>0)E('moBoxPrice').value=(bx*price).toFixed(2);
+  }
+}
+E('moBoxQty').addEventListener('input',()=>recalcBoxPricing('bx'));
+E('moBoxPrice').addEventListener('input',()=>recalcBoxPricing('pb'));
 E('moCat').addEventListener('change',function(){
   if(this.value==='__new__'){
     const n=prompt('Nombre de la nueva categoría:');
