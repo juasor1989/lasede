@@ -1157,12 +1157,10 @@ function renderProds(){
         <div class="pinf">
           <div class="pname">${p.n}</div>
           <div class="pmeta">
-            <span class="tag tu">${p.u}</span>
-            <span class="tag tp">${fmt(p.p)}</span>
+            <span class="tag tp">${fmt(p.p)}/${p.u}</span>
             ${p.bx>0?`<span class="tag tp" title="Precio por caja">${fmt(p.pb)}/${p.bu||'caja'}</span>`:''}
             <span class="tag tv">${p.v}</span>
             ${lo?'<span class="tag tl">⚠ BAJO</span>':''}
-            ${counted&&p.bx>0?`<span class="tag tu">≈${(val/p.bx).toFixed(1)} ${p.bu||'cajas'}</span>`:''}
             ${inCart?`<span class="tag tc">🛒 ${cart[p.id]}</span>`:''}
           </div>
         </div>
@@ -1171,10 +1169,13 @@ function renderProds(){
           <div class="cart-btn ${inCart?'incart':''}" onclick="toggleCart(${p.id})" title="Añadir al pedido">🛒</div>
           <div class="edit-btn" onclick="openEdit(${p.id})" title="Editar">✏️</div>
         </div>
-        <div class="cnt">
-          <div class="cb m" onclick="hM(${p.id})">−</div>
-          <div class="cv ${counted?'v':''}" onclick="openQty(${p.id})">${val??0}</div>
-          <div class="cb" onclick="hP(${p.id})">＋</div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:2px;flex-shrink:0;">
+          <div style="font-size:8px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;">${p.u}</div>
+          <div class="cnt">
+            <div class="cb m" onclick="hM(${p.id})">−</div>
+            <div class="cv ${counted?'v':''}" onclick="openQty(${p.id})">${val??0}</div>
+            <div class="cb" onclick="hP(${p.id})">＋</div>
+          </div>
         </div>
       </div>`;
     });
