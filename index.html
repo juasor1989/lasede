@@ -822,6 +822,7 @@ async function cloudLoad(){
     if(lo)try{orderHistory=JSON.parse(lo);}catch(e2){}
     showSync('⚠ Sin conexión — datos locales','#f97316');setTimeout(hideSync,3000);
   }
+  loadLocalModes();
   populateCatSelect();refreshProvFilter();
   renderAll();renderCart();renderHist();
   if(E('page-dash')?.classList.contains('active'))renderDash();
@@ -877,6 +878,17 @@ function localBackup(){
     localStorage.setItem('s8edits',JSON.stringify(getEdits()));
     localStorage.setItem('s8sales',JSON.stringify(sales||[]));
     localStorage.setItem('s8orderhist',JSON.stringify(orderHistory||[]));
+    localStorage.setItem('s8cntmode',JSON.stringify(cntMode||{}));
+    localStorage.setItem('s8cartmode',JSON.stringify(cartMode||{}));
+  }catch(e){}
+}
+
+function loadLocalModes(){
+  try{
+    const cm=localStorage.getItem('s8cntmode');
+    const km=localStorage.getItem('s8cartmode');
+    if(cm)cntMode=JSON.parse(cm)||{};
+    if(km)cartMode=JSON.parse(km)||{};
   }catch(e){}
 }
 
@@ -1027,12 +1039,23 @@ const CO=['🛢️ Barriles','🍺 Cervezas','🥤 Refrescos','💧 Aguas','🍷
 const PROVS=['LACUNZA','DISCON','EXBEL','LESAGA','EGAPAN','SADAR','VARIOS'];
 
 let prods=[],cnts={},cart={},hist=[],acat='Todos',editId=null,qtyId=null;
+let cntMode={},cartMode={}; // {productId:'u'|'b'} — recuerda en qué unidad se ve/edita cada contador (solo local, no se sincroniza a la nube)
 let deletedBaseIds=[],customProvs=[],customCats=[],catOrder=[],provPhones={};
 
 // ── HELPERS ──────────────────────────────────────────────────────
 function E(id){return document.getElementById(id);}
 function fmt(n){return n.toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2})+' €';}
 function fmtShort(n){return n.toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2});}
+// Precio real por unidad: si hay precio/caja + unidades por caja, se deriva SIEMPRE de ahí
+// (nunca del campo "Precio/unidad" guardado, que podría quedar desactualizado).
+function effUnitPrice(p){return(p&&p.bx>0&&p.pb>0)?(p.pb/p.bx):(p?p.p:0);}
+// Convierte una cantidad guardada en unidades base a lo que se muestra en el contador
+// según el modo elegido (unidades sueltas o cajas).
+function dispCount(raw,mode,p){
+  if(raw===undefined||raw===null)return raw;
+  if(mode==='b'&&p&&p.bx>0){const d=raw/p.bx;return Number.isInteger(d)?d:+d.toFixed(1);}
+  return raw;
+}
 function now(){return new Date().toLocaleString('es-ES',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});}
 
 function toast(msg,color){
@@ -1138,20 +1161,23 @@ function renderProds(){
   let h='';
   keys.forEach(cat=>{
     const pp=grp[cat];
-    let cv=0;pp.forEach(p=>{const v=cnts[p.id];if(v!==undefined)cv+=v*p.p;});
+    let cv=0;pp.forEach(p=>{const v=cnts[p.id];if(v!==undefined)cv+=v*effUnitPrice(p);});
     const done=pp.filter(p=>cnts[p.id]!==undefined).length;
     h+=`<div class="shdr"><div class="stit">${cat}</div><div class="sline"></div><div class="sval">${cv>0?fmt(cv):done+'/'+pp.length}</div></div><div class="plist">`;
     pp.forEach(p=>{
       const val=cnts[p.id],counted=val!==undefined,lo=counted&&val<(p.m||0);
       const inCart=cart[p.id]!==undefined;
       const cls=lo?'lo':(inCart?'incart':(counted?'ok':''));
-      const iv=counted?val*p.p:0;
+      const iv=counted?val*effUnitPrice(p):0;
+      const mode=(p.bx>0&&cntMode[p.id]==='b')?'b':'u';
+      const dispVal=dispCount(val,mode,p);
+      const dispLbl=mode==='b'?(p.bu||'cajas'):p.u;
       h+=`<div class="pi ${cls}">
         <div class="pem">${p.e||'📦'}</div>
         <div class="pinf">
           <div class="pname">${p.n}</div>
           <div class="pmeta">
-            <span class="tag tp">${fmt(p.p)}/${p.u}</span>
+            <span class="tag tp">${fmt(effUnitPrice(p))}/${p.u}</span>
             ${p.bx>0?`<span class="tag tp" title="Precio por caja">${fmt(p.pb)}/${p.bu||'caja'}</span>`:''}
             <span class="tag tv">${p.v}</span>
             ${lo?'<span class="tag tl">⚠ BAJO</span>':''}
@@ -1164,10 +1190,10 @@ function renderProds(){
           <div class="edit-btn" onclick="openEdit(${p.id})" title="Editar">✏️</div>
         </div>
         <div style="display:flex;flex-direction:column;align-items:center;gap:2px;flex-shrink:0;">
-          <div style="font-size:8px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;">${p.u}</div>
+          <div style="font-size:8px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;">${dispLbl}</div>
           <div class="cnt">
             <div class="cb m" onclick="hM(${p.id})">−</div>
-            <div class="cv ${counted?'v':''}" onclick="openQty(${p.id})">${val??0}</div>
+            <div class="cv ${counted?'v':''}" onclick="openQty(${p.id})">${dispVal??0}</div>
             <div class="cb" onclick="hP(${p.id})">＋</div>
           </div>
         </div>
@@ -1185,7 +1211,7 @@ function renderStats(){
   const low=tgt.filter(p=>cnts[p.id]!==undefined&&cnts[p.id]<(p.m||0)).length;
   const pct=tot>0?Math.round(counted/tot*100):0;
   let val=0,vc=0;
-  prods.forEach(p=>{const v=cnts[p.id];if(v!==undefined){val+=v*p.p;vc++;}});
+  prods.forEach(p=>{const v=cnts[p.id];if(v!==undefined){val+=v*effUnitPrice(p);vc++;}});
   E('vt').textContent=fmt(val);
   E('vs').textContent=`${vc} líneas contadas`;
   E('sTot').textContent=tot;E('sCnt').textContent=counted;
@@ -1203,13 +1229,18 @@ function renderAll(){renderTabs();renderProds();renderStats();if(E('page-dash')?
 
 // ── COUNTER ──────────────────────────────────────────────────────
 function hP(id){
+  const p=prods.find(x=>x.id===id);
+  const step=(p&&p.bx>0&&cntMode[id]==='b')?p.bx:1;
   const prev=cnts[id]??0;
-  cnts[id]=(prev+1);
+  cnts[id]=(prev+step);
   scheduleSave();renderAll();
 }
 function hM(id){
+  const p=prods.find(x=>x.id===id);
+  const step=(p&&p.bx>0&&cntMode[id]==='b')?p.bx:1;
   const c=cnts[id]??0;
-  if(c<=0)delete cnts[id];else cnts[id]=c-1;
+  const nc=c-step;
+  if(nc<=0)delete cnts[id];else cnts[id]=nc;
   scheduleSave();renderAll();
 }
 
@@ -1235,21 +1266,27 @@ function openQty(id){
   const p=prods.find(x=>x.id===id);qtyId=id;
   E('mqName').textContent=p.n;
   E('mqFmt').textContent='📦 '+p.f;
-  E('mqIn').value=cnts[id]??'';
+  const mode=(p.bx>0&&cntMode[id]==='b')?'b':'u';
+  E('mqIn').value=dispCount(cnts[id],mode,p)??'';
   const toggle=E('mqUnitToggleWrap');
   if(p.bx>0){toggle.style.display='block';}else{toggle.style.display='none';}
-  setQtyMode('mq','u');
+  setQtyMode('mq',mode);
   E('moQty').classList.add('open');
   setTimeout(()=>E('mqIn').focus(),200);
 }
 function closeMoQ(e){if(!e||e.target===E('moQty'))E('moQty').classList.remove('open');}
 function confirmQty(){
   const raw=E('mqIn').value;
-  if(raw===''&&qtyId!==null){delete cnts[qtyId];scheduleSave();renderAll();closeMoQ();return;}
+  if(raw===''&&qtyId!==null){delete cnts[qtyId];delete cntMode[qtyId];scheduleSave();renderAll();closeMoQ();return;}
   const val=parseFloat(raw);
   const p=prods.find(x=>x.id===qtyId);
-  const factor=(qtyModes.mq==='b'&&p&&p.bx>0)?p.bx:1;
-  if(!isNaN(val)&&val>=0&&qtyId!==null){cnts[qtyId]=+(val*factor).toFixed(1);scheduleSave();renderAll();toast('✓ Cantidad guardada');}
+  const mode=qtyModes.mq;
+  const factor=(mode==='b'&&p&&p.bx>0)?p.bx:1;
+  if(!isNaN(val)&&val>=0&&qtyId!==null){
+    cnts[qtyId]=+(val*factor).toFixed(2);
+    cntMode[qtyId]=(p&&p.bx>0)?mode:'u';
+    scheduleSave();renderAll();toast('✓ Cantidad guardada');
+  }
   closeMoQ();
 }
 
@@ -1266,15 +1303,16 @@ function toggleCart(id){
 function openCartQtyMo(id){
   const p=prods.find(x=>x.id===id);if(!p)return;
   E('cqName').textContent=p.n;
-  E('cqMeta').textContent=p.u+' · '+fmt(p.p)+'/'+p.u+' · '+p.v+(p.bx>0?' · '+fmt(p.pb)+'/'+(p.bu||'caja'):'');
+  E('cqMeta').textContent=p.u+' · '+fmt(effUnitPrice(p))+'/'+p.u+' · '+p.v+(p.bx>0?' · '+fmt(p.pb)+'/'+(p.bu||'caja'):'');
   E('cqIn').value='';
   const suggested=Math.max(1,(p.m||1)-(cnts[id]||0));
   E('cqPlaceholder').textContent=suggested+' '+p.u;
   E('moCQ').dataset.pid=id;
   const toggle=E('cqUnitToggleWrap');
+  const mode=(p.bx>0&&cartMode[id]==='b')?'b':'u';
   if(p.bx>0){toggle.style.display='block';}else{toggle.style.display='none';}
   E('moCQ').classList.add('open');
-  setQtyMode('cq','u');
+  setQtyMode('cq',mode);
   setTimeout(()=>E('cqIn').focus(),200);
 }
 function closeMoCQ(e){if(!e||e.target===E('moCQ'))E('moCQ').classList.remove('open');}
@@ -1283,11 +1321,13 @@ function confirmCQ(){
   const val=parseInt(E('cqIn').value);
   const p=prods.find(x=>x.id===id);if(!p)return;
   if(isNaN(val)||val<=0){toast('Introduce una cantidad válida','#ef4444');return;}
-  const factor=(qtyModes.cq==='b'&&p.bx>0)?p.bx:1;
+  const mode=qtyModes.cq;
+  const factor=(mode==='b'&&p.bx>0)?p.bx:1;
   cart[id]=val*factor;
+  cartMode[id]=(p.bx>0)?mode:'u';
   E('moCQ').classList.remove('open');
   scheduleSave();renderAll();
-  toast('🛒 '+p.n+' × '+cart[id]+' '+p.u+' añadido');
+  toast('🛒 '+p.n+' × '+val+' '+(mode==='b'?(p.bu||'cajas'):p.u)+' añadido');
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -1329,7 +1369,7 @@ function renderCartNormal(){
 
   Object.entries(byProv).sort().forEach(([prov,items])=>{
     let provTotal=0;
-    items.forEach(({p,qty})=>provTotal+=p.p*qty);
+    items.forEach(({p,qty})=>provTotal+=effUnitPrice(p)*qty);
     total+=provTotal;
     h+=`<div class="cart-section">
       <div class="cart-prov-hdr">
@@ -1340,24 +1380,27 @@ function renderCartNormal(){
         </div>
       </div>`;
     items.forEach(({p,qty})=>{
-      const lineTotal=p.p*qty;
+      const mode=(p.bx>0&&cartMode[p.id]==='b')?'b':'u';
+      const unitPrice=effUnitPrice(p);
+      const lineTotal=unitPrice*qty;
       const curStock=cnts[p.id]??0;
+      const dQty=dispCount(qty,mode,p);
+      const dLbl=mode==='b'?(p.bu||'cajas'):p.u;
       h+=`<div class="cart-item">
         <div class="ci-em">${p.e||'📦'}</div>
         <div class="ci-inf">
           <div class="ci-name">${p.n}</div>
           <div class="ci-meta">
-            <span>${fmt(p.p)}/${p.u}</span>
-            ${p.bx>0?`<span>· ≈${(qty/p.bx).toFixed(1)} ${p.bu||'cajas'}</span>`:''}
+            <span>${mode==='b'?fmt(p.pb)+'/'+(p.bu||'caja'):fmt(unitPrice)+'/'+p.u}</span>
             <span>·</span>
-            <span style="color:var(--t3)">Stock actual: ${curStock}</span>
+            <span style="color:var(--t3)">Stock actual: ${curStock} ${p.u}</span>
             <span>·</span>
             <span style="color:var(--gold2)">Total: ${fmt(lineTotal)}</span>
           </div>
         </div>
         <div class="ci-qty">
           <div class="ci-qty-btn" onclick="cartQtyChange(${p.id},-1)">−</div>
-          <div class="ci-qty-val">${qty}</div>
+          <div class="ci-qty-val">${dQty}</div>
           <div class="ci-qty-btn" onclick="cartQtyChange(${p.id},1)">＋</div>
         </div>
         <div class="ci-del" onclick="cartRemove(${p.id})">🗑</div>
@@ -1443,7 +1486,9 @@ function renderCartNormal(){
 
 function cartQtyChange(id,delta){
   if(cart[id]===undefined)return;
-  cart[id]=Math.max(1,cart[id]+delta);
+  const p=prods.find(x=>x.id===id);
+  const step=(p&&p.bx>0&&cartMode[id]==='b')?p.bx:1;
+  cart[id]=Math.max(step,cart[id]+delta*step);
   scheduleSave();renderCart();renderStats();
 }
 function cartRemove(id){delete cart[id];scheduleSave();renderCart();renderStats();}
@@ -1516,7 +1561,7 @@ function renderRecvMode(){
   // Total value confirmed so far
   let valConfirmed=0;
   Object.entries(recvQtys).forEach(([id,qty])=>{
-    if(qty!==null){const p=prods.find(x=>x.id===parseInt(id));if(p)valConfirmed+=p.p*qty;}
+    if(qty!==null){const p=prods.find(x=>x.id===parseInt(id));if(p)valConfirmed+=effUnitPrice(p)*qty;}
   });
   E('cartTotal').textContent=fmt(valConfirmed);
   E('cartTotalSub').textContent=`${confirmed}/${total} confirmados`;
@@ -1602,7 +1647,7 @@ function recvChangeQty(id,delta){
 function openMoRQ(id){
   const p=prods.find(x=>x.id===id);recvQtyId=id;
   E('mrqName').textContent=p.n;
-  E('mrqMeta').textContent=`📦 ${p.u} · ${fmt(p.p)}/${p.u} · ${p.v}`;
+  E('mrqMeta').textContent=`📦 ${p.u} · ${fmt(effUnitPrice(p))}/${p.u} · ${p.v}`;
   E('mrqOrdered').textContent=cart[id];
   E('mrqCurrent').textContent=cnts[id]??0;
   E('mrqInput').value=recvQtys[id]??cart[id];
@@ -1649,8 +1694,8 @@ function finishReception(){
     const ordered=cart[id];
     const disc=qty-ordered;
     if(disc!==0)hasDiscrepancy=true;
-    valueReceived+=p.p*qty;
-    items.push({id,name:p.n,emoji:p.e,unit:p.u,prov:p.v,ordered,received:qty,disc,price:p.p});
+    valueReceived+=effUnitPrice(p)*qty;
+    items.push({id,name:p.n,emoji:p.e,unit:p.u,prov:p.v,ordered,received:qty,disc,price:effUnitPrice(p)});
     // ✅ UPDATE INVENTORY: add received qty to current stock
     cnts[id]=(cnts[id]??0)+qty;
   });
@@ -1709,8 +1754,9 @@ function exportCartXL(){
     ];
     let provTotal=0;
     items.forEach(({p,qty})=>{
-      const lt=+(p.p*qty).toFixed(2);provTotal+=lt;totalGlobal+=lt;
-      rows.push([p.n,p.u,qty,p.p,lt]);
+      const up=effUnitPrice(p);
+      const lt=+(up*qty).toFixed(2);provTotal+=lt;totalGlobal+=lt;
+      rows.push([p.n,p.u,qty,up,lt]);
     });
     rows.push(['','','','TOTAL PROVEEDOR:',+provTotal.toFixed(2)]);
     const ws=XLSX.utils.aoa_to_sheet(rows);
@@ -1720,7 +1766,7 @@ function exportCartXL(){
   // Hoja resumen
   const resumen=[['RESUMEN PEDIDO — La Sede',''],['Fecha:',now2.toLocaleDateString('es-ES')],['','']];
   Object.entries(byProv).sort().forEach(([prov,items])=>{
-    let pt=0;items.forEach(({p,qty})=>pt+=p.p*qty);
+    let pt=0;items.forEach(({p,qty})=>pt+=effUnitPrice(p)*qty);
     resumen.push([prov,+pt.toFixed(2)]);
   });
   resumen.push(['','']);resumen.push(['TOTAL GLOBAL',+totalGlobal.toFixed(2)]);
@@ -1740,7 +1786,7 @@ function snapExpand(snap){
   expanded.items=snap.items.map(({i,q})=>{
     const p=prods.find(x=>x.id===i);
     if(!p)return null;
-    return{id:i,n:p.n,c:p.c,v:p.v,u:p.u,p:p.p,qty:q,val:+(q*p.p).toFixed(2)};
+    return{id:i,n:p.n,c:p.c,v:p.v,u:p.u,p:effUnitPrice(p),qty:q,val:+(q*effUnitPrice(p)).toFixed(2)};
   }).filter(Boolean);
   // Expand compressed changes {i,p,c} to full format
   if(snap.changes){
@@ -1987,9 +2033,10 @@ function exportXL(){
     const pp=prods.filter(p=>p.c===cat);if(!pp.length)return;
     let cv=0;
     pp.forEach(p=>{
-      const v=cnts[p.id],val=v!==undefined?+(v*p.p).toFixed(2):0;
+      const up=effUnitPrice(p);
+      const v=cnts[p.id],val=v!==undefined?+(v*up).toFixed(2):0;
       if(v!==undefined){cv+=val;total+=val;}
-      rows.push([cat,p.n,p.v,p.u,p.p,v??'—',v!==undefined?val:'—',v===undefined?'SIN CONTAR':v<(p.m||0)?'⚠ BAJO':'✓ OK']);
+      rows.push([cat,p.n,p.v,p.u,up,v??'—',v!==undefined?val:'—',v===undefined?'SIN CONTAR':v<(p.m||0)?'⚠ BAJO':'✓ OK']);
     });
     rows.push(['','SUBTOTAL '+cat.replace(/[^\w\s]/g,'').trim(),'','','','',+cv.toFixed(2),'']);
     rows.push(['','','','','','','','']);
@@ -2143,7 +2190,7 @@ function renderDash(){
   if(!content){setTimeout(renderDash,200);return;}
 
   // ── 1. KPI cards ──
-  const totalVal=prods.reduce((s,p)=>{const v=cnts[p.id];return s+(v!==undefined?v*p.p:0);},0);
+  const totalVal=prods.reduce((s,p)=>{const v=cnts[p.id];return s+(v!==undefined?v*effUnitPrice(p):0);},0);
   const counted=prods.filter(p=>cnts[p.id]!==undefined).length;
   const lowProds=prods.filter(p=>cnts[p.id]!==undefined&&cnts[p.id]<(p.m||0));
   const cartProds=Object.keys(cart).length;
@@ -2332,7 +2379,7 @@ function renderDash(){
 
   // ── 5. Valor por categoría ──
   const catVals={};
-  prods.forEach(p=>{const v=cnts[p.id];if(v!==undefined&&v>0){if(!catVals[p.c])catVals[p.c]=0;catVals[p.c]+=v*p.p;}});
+  prods.forEach(p=>{const v=cnts[p.id];if(v!==undefined&&v>0){if(!catVals[p.c])catVals[p.c]=0;catVals[p.c]+=v*effUnitPrice(p);}});
   const catSorted=Object.entries(catVals).sort((a,b)=>b[1]-a[1]);
   if(catSorted.length>0){
     const maxVal=catSorted[0][1];
@@ -2531,7 +2578,7 @@ function renderProdEvol(){
   hist.forEach(snap=>{
     const s=snapExpand(snap);
     const item=s.items.find(x=>x.id===id);
-    if(item!==undefined)points.push({ts:snap.ts,qty:item.qty,val:+(item.qty*p.p).toFixed(2)});
+    if(item!==undefined)points.push({ts:snap.ts,qty:item.qty,val:+(item.qty*effUnitPrice(p)).toFixed(2)});
   });
   if(points.length===0){
     content.innerHTML='<div style="font-size:12px;color:var(--t2);text-align:center;padding:16px;">Este producto no aparece en ningún snapshot aún</div>';
@@ -2549,7 +2596,7 @@ function renderProdEvol(){
   const trendColor=trend<0?'var(--red)':trend>0?'var(--green)':'var(--t2)';
   h+='<div style="background:var(--s2);border-radius:var(--rs);padding:8px;text-align:center;"><div style="font-family:Bebas Neue,sans-serif;font-size:20px;color:'+trendColor+';">'+(trend>0?'+':'')+trend+'</div><div style="font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--t2);">Tendencia</div></div>';
   h+='</div>';
-  h+='<div style="font-size:10px;color:var(--t2);margin-bottom:6px;">Unidad: '+p.u+' · Precio: '+fmt(p.p)+'</div>';
+  h+='<div style="font-size:10px;color:var(--t2);margin-bottom:6px;">Unidad: '+p.u+' · Precio: '+fmt(effUnitPrice(p))+'</div>';
   chronological.forEach(function(pt,i){
     const prev=i>0?chronological[i-1]:null;
     const delta=prev!==null?pt.qty-prev.qty:null;
@@ -2575,7 +2622,7 @@ function exportDashXL(){
   const now2=new Date();
   const rows=[['DASHBOARD LA SEDE · '+now2.toLocaleDateString('es-ES'),'',''],['','','']];
   const catVals={};
-  prods.forEach(p=>{const v=cnts[p.id];if(v!==undefined&&v>0){if(!catVals[p.c])catVals[p.c]=0;catVals[p.c]+=v*p.p;}});
+  prods.forEach(p=>{const v=cnts[p.id];if(v!==undefined&&v>0){if(!catVals[p.c])catVals[p.c]=0;catVals[p.c]+=v*effUnitPrice(p);}});
   rows.push(['VALOR POR CATEGORÍA','','']);
   rows.push(['Categoría','Valor (€)','']);
   Object.entries(catVals).sort((a,b)=>b[1]-a[1]).forEach(([c,v])=>rows.push([c,+v.toFixed(2),'']));
@@ -2659,10 +2706,10 @@ function confirmHistoricOrder(){
     const id=parseInt(idStr);
     const p=prods.find(x=>x.id===id);if(!p)return;
     provSet.add(p.v);
-    valueReceived+=p.p*qty;
+    valueReceived+=effUnitPrice(p)*qty;
     items.push({
       id,name:p.n,emoji:p.e,unit:p.u,prov:p.v,
-      ordered:qty,received:qty,disc:0,price:p.p
+      ordered:qty,received:qty,disc:0,price:effUnitPrice(p)
     });
   });
 
@@ -2715,7 +2762,7 @@ function exportCartWA(){
     text+=`📦 *${prov}*
 `;
     items.forEach(({p,qty})=>{
-      const lt=p.p*qty;provTotal+=lt;totalGlobal+=lt;
+      const lt=effUnitPrice(p)*qty;provTotal+=lt;totalGlobal+=lt;
       text+=`  • ${p.n}: *${qty} ${p.u}*
 `;
     });
@@ -2742,7 +2789,7 @@ function buildProvOrderText(prov,items){
 📦 *${prov}*
 `;
   items.forEach(({p,qty})=>{
-    const lt=p.p*qty;total+=lt;
+    const lt=effUnitPrice(p)*qty;total+=lt;
     text+=`  • ${p.n}: *${qty} ${p.u}*
 `;
   });
