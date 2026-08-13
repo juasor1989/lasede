@@ -610,7 +610,6 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;dis
           <option value="botellas">Botellas</option>
           <option value="botellines">Botellines</option>
           <option value="latas">Latas</option>
-          <option value="cajas">Cajas</option>
           <option value="barriles">Barriles</option>
           <option value="bolsas 5kg">Bolsas 5kg</option>
           <option value="bolsas 2.5kg">Bolsas 2.5kg</option>
@@ -622,11 +621,6 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;dis
           <option value="bandejas">Bandejas</option>
           <option value="paquetes 300g">Paquetes 300g</option>
           <option value="bricks">Bricks</option>
-          <option value="cajas 16ud">Cajas 16ud</option>
-          <option value="cajas 45ud">Cajas 45ud</option>
-          <option value="cajas 4kg">Cajas 4kg</option>
-          <option value="cajas 3kg">Cajas 3kg</option>
-          <option value="cajas 15ud">Cajas 15ud</option>
           <option value="huevos">Huevos</option>
           <option value="otro">Otro</option>
         </select>
@@ -1904,8 +1898,13 @@ function openEdit(id){
   E('moPrice').value=p.p;E('moMin').value=p.m||0;E('moFmt').value=p.f||'';
   E('moBoxQty').value=p.bx||'';E('moBoxPrice').value=p.pb||'';
   E('moProv').value=p.v;
-  // Set unit
-  const uOpt=[...E('moUnit').options].find(o=>o.value===p.u);
+  // Set unit — si es una unidad antigua que ya no está en la lista (ej. "cajas..."), la conservamos como opción temporal para no perderla al guardar
+  let uOpt=[...E('moUnit').options].find(o=>o.value===p.u);
+  if(!uOpt&&p.u){
+    uOpt=document.createElement('option');
+    uOpt.value=p.u;uOpt.textContent=p.u+' (heredado)';
+    E('moUnit').insertBefore(uOpt,E('moUnit').lastElementChild);
+  }
   if(uOpt)E('moUnit').value=p.u;
   // Set cat
   const cOpt=[...E('moCat').options].find(o=>o.value===p.c);
