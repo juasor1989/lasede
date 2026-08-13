@@ -772,6 +772,7 @@ function hideSync(){document.getElementById('syncBadge').style.opacity='0';}
 
 async function cloudLoad(){
   showSync('☁ Cargando...','#d4a843');
+  loadLocalModes(); // cargar cntMode/cartMode ANTES de cualquier localBackup(), para no sobrescribirlos con {} vacío
   try{
     const r=await fetch(GS_URL+'?t='+Date.now(),{mode:'cors'});
     if(!r.ok)throw new Error();
@@ -822,7 +823,6 @@ async function cloudLoad(){
     if(lo)try{orderHistory=JSON.parse(lo);}catch(e2){}
     showSync('⚠ Sin conexión — datos locales','#f97316');setTimeout(hideSync,3000);
   }
-  loadLocalModes();
   populateCatSelect();refreshProvFilter();
   renderAll();renderCart();renderHist();
   if(E('page-dash')?.classList.contains('active'))renderDash();
