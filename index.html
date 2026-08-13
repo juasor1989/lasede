@@ -2756,22 +2756,20 @@ function exportCartWA(){
 📅 ${now2.toLocaleDateString('es-ES')}
 
 `;
-  let totalGlobal=0;
   Object.entries(byProv).sort().forEach(([prov,items])=>{
-    let provTotal=0;
     text+=`📦 *${prov}*
 `;
     items.forEach(({p,qty})=>{
-      const lt=effUnitPrice(p)*qty;provTotal+=lt;totalGlobal+=lt;
-      text+=`  • ${p.n}: *${qty} ${p.u}*
+      const mode=(p.bx>0&&cartMode[p.id]==='b')?'b':'u';
+      const dQty=dispCount(qty,mode,p);
+      const dLbl=mode==='b'?(p.bu||'cajas'):p.u;
+      text+=`  • ${p.n}: *${dQty} ${dLbl}*
 `;
     });
-    text+=`  💰 Subtotal: ${fmt(provTotal)}
-
+    text+=`
 `;
   });
-  text+=`───────────────
-💰 *TOTAL: ${fmt(totalGlobal)}*`;
+  text=text.trim();
   // Copy to clipboard
   if(navigator.clipboard){
     navigator.clipboard.writeText(text).then(()=>{
@@ -2782,20 +2780,19 @@ function exportCartWA(){
 
 function buildProvOrderText(prov,items){
   const now2=new Date();
-  let total=0;
   let text=`🏪 *PEDIDO LA SEDE*
 📅 ${now2.toLocaleDateString('es-ES')}
 
 📦 *${prov}*
 `;
   items.forEach(({p,qty})=>{
-    const lt=effUnitPrice(p)*qty;total+=lt;
-    text+=`  • ${p.n}: *${qty} ${p.u}*
+    const mode=(p.bx>0&&cartMode[p.id]==='b')?'b':'u';
+    const dQty=dispCount(qty,mode,p);
+    const dLbl=mode==='b'?(p.bu||'cajas'):p.u;
+    text+=`  • ${p.n}: *${dQty} ${dLbl}*
 `;
   });
-  text+=`
-💰 *TOTAL: ${fmt(total)}*`;
-  return text;
+  return text.trim();
 }
 
 function sendProvWA(prov){
