@@ -801,6 +801,8 @@ async function cloudLoad(){
     if(data.edits){
       try{applyEdits(JSON.parse(data.edits));}catch(e2){console.warn('edits',e2);}
     }
+    if(data.cntMode){try{cntMode=JSON.parse(data.cntMode)||{};}catch(e2){}}
+    if(data.cartMode){try{cartMode=JSON.parse(data.cartMode)||{};}catch(e2){}}
     localBackup();
     populateCatSelect();refreshProvFilter();
     renderAll();renderCart();renderHist();
@@ -898,20 +900,44 @@ function scheduleSave(){
   saveTimer=setTimeout(cloudSave,1800);
 }
 
+function buildSyncPayload(){
+  // Split hist across 2 cells to avoid Google Sheets 50k char limit
+  // Apps Script handles chunking automatically for large fields
+  return{
+    cnts:JSON.stringify(cnts),
+    cart:JSON.stringify(cart),
+    hist:JSON.stringify(hist),
+    edits:JSON.stringify(getEdits()),
+    sales:JSON.stringify(sales||[]),
+    orderHistory:JSON.stringify(orderHistory||[]),
+    cntMode:JSON.stringify(cntMode||{}),
+    cartMode:JSON.stringify(cartMode||{})
+  };
+}
+
+// Si el usuario cierra la app / cambia de pestaña antes de que salte el temporizador
+// de guardado (1.8s), forzamos el guardado ya mismo para no perder el último cambio.
+// Al cerrar de verdad (pagehide) usamos sendBeacon, más fiable que fetch en ese momento.
+function flushPendingSave(closing){
+  if(!saveTimer)return;
+  clearTimeout(saveTimer);saveTimer=null;
+  if(closing&&navigator.sendBeacon){
+    try{
+      const blob=new Blob([JSON.stringify(buildSyncPayload())],{type:'text/plain'});
+      navigator.sendBeacon(GS_URL,blob);
+      return;
+    }catch(e){}
+  }
+  cloudSave();
+}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')flushPendingSave(true);});
+window.addEventListener('pagehide',()=>flushPendingSave(true));
+
 async function cloudSave(){
   if(syncing){pendingSave=true;return;}
   syncing=true;showSync('☁ Guardando...','#d4a843');
   try{
-    // Split hist across 2 cells to avoid Google Sheets 50k char limit
-    // Apps Script handles chunking automatically for large fields
-    const payload={
-      cnts:JSON.stringify(cnts),
-      cart:JSON.stringify(cart),
-      hist:JSON.stringify(hist),
-      edits:JSON.stringify(getEdits()),
-      sales:JSON.stringify(sales||[]),
-      orderHistory:JSON.stringify(orderHistory||[])
-    };
+    const payload=buildSyncPayload();
     const r=await fetch(GS_URL,{method:'POST',body:JSON.stringify(payload),headers:{'Content-Type':'text/plain'},mode:'cors'});
     const res=await r.json();
     if(res.ok){showSync('✓ Guardado','#22c55e');setTimeout(hideSync,1800);}
